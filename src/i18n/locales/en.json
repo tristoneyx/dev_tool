@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "DevTool",
+    "history": "History"
+  },
+  "tools": {
+    "json_viewer": "JSON Viewer",
+    "json_diff": "JSON Diff",
+    "escape": "Escape",
+    "base64": "Base64",
+    "url_parser": "URL Parser"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "tooltip": "Cycle theme: Light → Dark → System"
+  },
+  "locale": {
+    "zh": "中",
+    "en": "EN",
+    "tooltip": "Switch language / 切换语言"
+  },
+  "history_drawer": {
+    "search_placeholder": "Search history…",
+    "empty": "No saved items yet.",
+    "delete_confirm": "Delete \"{{title}}\"?",
+    "delete_title": "Delete"
+  },
+  "save_dialog": {
+    "heading": "Save to history",
+    "title_label": "Title",
+    "cancel": "Cancel",
+    "overwrite": "Overwrite",
+    "new": "New"
+  },
+  "common": {
+    "just_now": "just now",
+    "ago_minute": "{{n}}m ago",
+    "ago_hour": "{{n}}h ago",
+    "ago_day": "{{n}}d ago",
+    "size_bytes": "{{n}} B",
+    "size_kb": "{{n}} KB",
+    "size_mb": "{{n}} MB",
+    "coming_soon": "{{tool}} — coming next plan.",
+    "loaded_history_toast": "Loaded \"{{title}}\" (wiring in next plan)."
+  }
+}

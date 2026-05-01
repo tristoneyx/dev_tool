@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "DevTool",
+    "history": "历史记录"
+  },
+  "tools": {
+    "json_viewer": "JSON 可视化",
+    "json_diff": "JSON 对比",
+    "escape": "转义/反转义",
+    "base64": "Base64",
+    "url_parser": "URL 解析"
+  },
+  "theme": {
+    "light": "浅色",
+    "dark": "深色",
+    "system": "跟随系统",
+    "tooltip": "切换主题：浅色 → 深色 → 跟随系统"
+  },
+  "locale": {
+    "zh": "中",
+    "en": "EN",
+    "tooltip": "Switch language / 切换语言"
+  },
+  "history_drawer": {
+    "search_placeholder": "搜索历史…",
+    "empty": "尚无保存的条目。",
+    "delete_confirm": "确认删除「{{title}}」？",
+    "delete_title": "删除"
+  },
+  "save_dialog": {
+    "heading": "保存到历史记录",
+    "title_label": "标题",
+    "cancel": "取消",
+    "overwrite": "覆盖当前",
+    "new": "新建"
+  },
+  "common": {
+    "just_now": "刚刚",
+    "ago_minute": "{{n}} 分钟前",
+    "ago_hour": "{{n}} 小时前",
+    "ago_day": "{{n}} 天前",
+    "size_bytes": "{{n}} B",
+    "size_kb": "{{n}} KB",
+    "size_mb": "{{n}} MB",
+    "coming_soon": "{{tool}} — 后续计划实现",
+    "loaded_history_toast": "已载入「{{title}}」（下个计划接入）"
+  }
+}

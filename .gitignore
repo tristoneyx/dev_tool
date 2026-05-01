@@ -6,9 +6,15 @@ node_modules/
 dist/
 *.log
 
+# TypeScript / Vite build artifacts (vite handles bundling; tsc only type-checks)
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+
 # Rust / Tauri
 target/
 src-tauri/target/
+src-tauri/gen/
 
 # IDE
 .vscode/
