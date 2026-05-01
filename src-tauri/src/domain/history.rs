@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(thiserror::Error, Debug)]
+#[error("unknown tool kind: {0}")]
+pub struct ParseToolKindError(pub String);
+
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolKind {
@@ -21,14 +25,19 @@ impl ToolKind {
         }
     }
 
-    pub fn from_str(s: &str) -> Option<Self> {
+}
+
+impl std::str::FromStr for ToolKind {
+    type Err = ParseToolKindError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "json_viewer" => Some(Self::JsonViewer),
-            "json_diff" => Some(Self::JsonDiff),
-            "escape" => Some(Self::Escape),
-            "base64" => Some(Self::Base64),
-            "url_parser" => Some(Self::UrlParser),
-            _ => None,
+            "json_viewer" => Ok(Self::JsonViewer),
+            "json_diff" => Ok(Self::JsonDiff),
+            "escape" => Ok(Self::Escape),
+            "base64" => Ok(Self::Base64),
+            "url_parser" => Ok(Self::UrlParser),
+            other => Err(ParseToolKindError(other.to_string())),
         }
     }
 }
@@ -100,6 +109,7 @@ mod tests {
 
     #[test]
     fn tool_kind_round_trip() {
+        use std::str::FromStr;
         for tool in [
             ToolKind::JsonViewer,
             ToolKind::JsonDiff,
@@ -107,8 +117,15 @@ mod tests {
             ToolKind::Base64,
             ToolKind::UrlParser,
         ] {
-            assert_eq!(ToolKind::from_str(tool.as_str()), Some(tool));
+            assert_eq!(ToolKind::from_str(tool.as_str()).unwrap(), tool);
         }
+    }
+
+    #[test]
+    fn tool_kind_from_str_rejects_unknown() {
+        use std::str::FromStr;
+        let err = ToolKind::from_str("nope").unwrap_err();
+        assert!(err.to_string().contains("nope"));
     }
 
     #[test]
