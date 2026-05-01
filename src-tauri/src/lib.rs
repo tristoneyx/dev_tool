@@ -25,6 +25,11 @@ pub fn run() {
             commands::history::history_list,
             commands::history::history_get,
             commands::history::history_delete,
+            commands::json::json_parse,
+            commands::json::json_parse_nested,
+            commands::json::json_format,
+            commands::json::json_unescape,
+            commands::json::json_escape,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
