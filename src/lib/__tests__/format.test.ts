@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import i18n from "../../i18n";
 import { formatRelativeTime, formatBytes } from "../format";
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
+});
 
 describe("formatRelativeTime", () => {
   it("returns 'just now' for less than a minute ago", () => {
