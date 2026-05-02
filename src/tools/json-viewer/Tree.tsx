@@ -65,14 +65,6 @@ export function Tree() {
     searchMode,
   ]);
 
-  if (!tree) {
-    return (
-      <div className="h-full flex items-center justify-center text-[color:var(--text-muted)] text-sm">
-        {t("json_viewer.tree_empty")}
-      </div>
-    );
-  }
-
   const renderRow = ({ index, style }: ListChildComponentProps) => (
     <div style={style}>
       <TreeNode
@@ -98,8 +90,13 @@ export function Tree() {
   );
 
   return (
-    <div ref={hostRef} className="h-full w-full overflow-hidden">
-      {size.width > 0 && size.height > 0 && (
+    <div ref={hostRef} className="h-full w-full overflow-hidden relative">
+      {!tree && (
+        <div className="absolute inset-0 flex items-center justify-center text-[color:var(--text-muted)] text-sm pointer-events-none">
+          {t("json_viewer.tree_empty")}
+        </div>
+      )}
+      {tree && size.width > 0 && size.height > 0 && (
         <VariableSizeList
           ref={listRef}
           height={size.height}
