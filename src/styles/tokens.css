@@ -10,6 +10,13 @@
   --diff-modified: #d4a347;
   --diff-type-changed: #4a7b9d;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* JSON syntax highlighting */
+  --json-key: #b65a37;
+  --json-string: #4f7a4d;
+  --json-number: #2f6c93;
+  --json-bool: #8a4baf;
+  --json-null: #8a8278;
+  --json-punctuation: #6f6a62;
 }
 
 :root.dark {
@@ -24,6 +31,13 @@
   --diff-modified: #e2bb5e;
   --diff-type-changed: #6da4c6;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  /* JSON syntax highlighting */
+  --json-key: #e89a78;
+  --json-string: #8db888;
+  --json-number: #6fb1d6;
+  --json-bool: #c08bdc;
+  --json-null: #9a948a;
+  --json-punctuation: #9a948a;
 }
 
 body {

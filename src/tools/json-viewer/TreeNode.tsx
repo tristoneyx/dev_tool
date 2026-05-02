@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
-import type { JsonNode } from "../../types/ipc";
-import { previewArray, previewObject, valueSummary } from "./nodePreview";
+import type { JsonNode, NodeValue } from "../../types/ipc";
+import { previewArray, previewObject } from "./nodePreview";
 import type { VisibleNode } from "./flatten";
 import { copyToClipboard } from "../../lib/clipboard";
 import { useToastStore } from "../../shell/toastStore";
@@ -40,6 +40,53 @@ function highlight(text: string, query: string): React.ReactNode {
   );
 }
 
+/** Render a primitive (or empty container literal) value with type-specific color. */
+function renderTypedValue(
+  value: NodeValue,
+  searchQuery: string,
+): React.ReactNode {
+  switch (value.type) {
+    case "null":
+      return (
+        <span className="text-[color:var(--json-null)] italic">
+          {highlight("null", searchQuery)}
+        </span>
+      );
+    case "bool":
+      return (
+        <span className="text-[color:var(--json-bool)]">
+          {highlight(value.value ? "true" : "false", searchQuery)}
+        </span>
+      );
+    case "number":
+      return (
+        <span className="text-[color:var(--json-number)]">
+          {highlight(value.raw, searchQuery)}
+        </span>
+      );
+    case "string": {
+      const v = value.value;
+      const TRUNCATE = 30;
+      const trimmed = v.length > TRUNCATE ? v.slice(0, TRUNCATE) + "…" : v;
+      return (
+        <span className="text-[color:var(--json-string)]">
+          <span className="text-[color:var(--json-punctuation)]">"</span>
+          {highlight(trimmed, searchQuery)}
+          <span className="text-[color:var(--json-punctuation)]">"</span>
+        </span>
+      );
+    }
+    case "object":
+      return (
+        <span className="text-[color:var(--json-punctuation)]">{"{...}"}</span>
+      );
+    case "array":
+      return (
+        <span className="text-[color:var(--json-punctuation)]">[...]</span>
+      );
+  }
+}
+
 export function TreeNode({
   visible,
   onToggleCollapse,
@@ -55,24 +102,41 @@ export function TreeNode({
 
   const indent = { paddingLeft: `${depth * 16 + 8}px` };
 
-  const renderValue = () => {
+  const renderValueNode = (): React.ReactNode => {
     if (isCollapsed) {
       if (node.value.type === "object") {
-        return previewObject(node.value.children) +
+        const text =
+          previewObject(node.value.children) +
           ` · ` +
           t("json_viewer.type_object_keys", { n: node.value.key_count });
+        return (
+          <span className="text-[color:var(--text-muted)]">
+            {highlight(text, searchQuery)}
+          </span>
+        );
       }
       if (node.value.type === "array") {
-        return previewArray(node.value.children) +
+        const text =
+          previewArray(node.value.children) +
           ` · ` +
           t("json_viewer.type_array_items", { n: node.value.item_count });
+        return (
+          <span className="text-[color:var(--text-muted)]">
+            {highlight(text, searchQuery)}
+          </span>
+        );
       }
-      return valueSummary(node.value);
+      return renderTypedValue(node.value, searchQuery);
     }
     if (node.value.type === "object" || node.value.type === "array") {
-      return ""; // when expanded, the children rows show the content
+      // Show an opening brace/bracket so structure is still visible while expanded.
+      return (
+        <span className="text-[color:var(--json-punctuation)]">
+          {node.value.type === "object" ? "{" : "["}
+        </span>
+      );
     }
-    return valueSummary(node.value);
+    return renderTypedValue(node.value, searchQuery);
   };
 
   const label = keyLabel(node);
@@ -95,15 +159,13 @@ export function TreeNode({
       )}
 
       {label && (
-        <span className="text-[color:var(--accent)]">
+        <span className="text-[color:var(--json-key)]">
           {highlight(label, searchQuery)}
-          <span className="text-[color:var(--text-muted)]">: </span>
+          <span className="text-[color:var(--json-punctuation)]">: </span>
         </span>
       )}
 
-      <span className="text-[color:var(--text-primary)] truncate">
-        {highlight(renderValue(), searchQuery)}
-      </span>
+      <span className="truncate">{renderValueNode()}</span>
 
       {collapseReason === "auto_array_threshold" &&
         node.value.type === "array" && (
