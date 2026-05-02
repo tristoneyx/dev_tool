@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import { useJsonViewerStore, ARRAY_COLLAPSE_THRESHOLD } from "./store";
@@ -6,6 +6,28 @@ import { flatten, type VisibleNode } from "./flatten";
 import { TreeNode } from "./TreeNode";
 
 const ROW_HEIGHT = 28;
+
+/** Measure the bounding box of a parent so react-window gets explicit dims. */
+function useElementSize(): [
+  React.RefObject<HTMLDivElement>,
+  { width: number; height: number },
+] {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        setSize({ width, height });
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, size];
+}
 
 export function Tree() {
   const { t } = useTranslation();
@@ -22,6 +44,7 @@ export function Tree() {
   const collapseNested = useJsonViewerStore((s) => s.collapseNested);
 
   const listRef = useRef<VariableSizeList | null>(null);
+  const [hostRef, size] = useElementSize();
 
   const visible: VisibleNode[] = useMemo(() => {
     if (!tree) return [];
@@ -75,17 +98,19 @@ export function Tree() {
   );
 
   return (
-    <div className="h-full">
-      <VariableSizeList
-        ref={listRef}
-        height={typeof window !== "undefined" ? window.innerHeight - 200 : 600}
-        width="100%"
-        itemCount={visible.length}
-        itemSize={() => ROW_HEIGHT}
-        overscanCount={20}
-      >
-        {renderRow}
-      </VariableSizeList>
+    <div ref={hostRef} className="h-full w-full overflow-hidden">
+      {size.width > 0 && size.height > 0 && (
+        <VariableSizeList
+          ref={listRef}
+          height={size.height}
+          width={size.width}
+          itemCount={visible.length}
+          itemSize={() => ROW_HEIGHT}
+          overscanCount={20}
+        >
+          {renderRow}
+        </VariableSizeList>
+      )}
     </div>
   );
 }

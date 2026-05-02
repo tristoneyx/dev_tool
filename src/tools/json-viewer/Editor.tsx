@@ -50,8 +50,11 @@ export function Editor({ value, onChange, diagnostic }: EditorProps) {
           }),
           EditorView.theme(
             {
-              "&": { height: "100%" },
-              ".cm-scroller": { fontFamily: "var(--font-mono, monospace)" },
+              "&": { height: "100%", maxWidth: "100%" },
+              ".cm-scroller": {
+                fontFamily: "var(--font-mono, monospace)",
+                overflow: "auto",
+              },
             },
             { dark: false },
           ),
