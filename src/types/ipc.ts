@@ -45,3 +45,49 @@ export type AppError =
       code: "codec" | "url_parse" | "db" | "io" | "internal";
       message: string;
     };
+
+// ----- JSON Viewer types (mirror src-tauri/src/domain/json_tree.rs) -----
+
+export type NodeKey =
+  | { kind: "root" }
+  | { kind: "object"; name: string }
+  | { kind: "array"; index: number };
+
+export interface NestedHint {
+  kind_summary: string;
+}
+
+export type NodeValue =
+  | { type: "null" }
+  | { type: "bool"; value: boolean }
+  | { type: "number"; raw: string }
+  | { type: "string"; value: string; nested_hint: NestedHint | null }
+  | {
+      type: "object";
+      children: JsonNode[];
+      key_count: number;
+    }
+  | {
+      type: "array";
+      children: JsonNode[];
+      item_count: number;
+    };
+
+export interface JsonNode {
+  id: number;
+  key: NodeKey;
+  path: string;
+  value: NodeValue;
+}
+
+export interface TreeStats {
+  total_nodes: number;
+  max_depth: number;
+  byte_size: number;
+}
+
+export interface JsonTree {
+  root: JsonNode;
+  stats: TreeStats;
+  unescape_layers: number;
+}
