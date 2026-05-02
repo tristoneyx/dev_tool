@@ -11,6 +11,7 @@ import { Base64 } from "./tools/base64";
 import { UrlParser } from "./tools/url-parser";
 import type { HistoryItem, ToolKind } from "./types/ipc";
 import { useToastStore } from "./shell/toastStore";
+import { useJsonViewerStore } from "./tools/json-viewer/store";
 
 const tools: Record<ToolKind, () => ReactElement> = {
   json_viewer: JsonViewer,
@@ -29,6 +30,13 @@ export default function App() {
   const ActiveTool = tools[active];
 
   function handleLoad(item: HistoryItem) {
+    if (item.content.tool === "json_viewer") {
+      useJsonViewerStore.getState().setInput(item.content.input);
+      useJsonViewerStore.getState().setLoadedHistoryId(item.id);
+      void useJsonViewerStore.getState().parse(item.content.input);
+      push("success", t("common.loaded_history_toast", { title: item.title }));
+      return;
+    }
     push("info", t("common.loaded_history_toast", { title: item.title }));
   }
 
