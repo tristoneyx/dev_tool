@@ -30,6 +30,7 @@ pub fn run() {
             commands::json::json_format,
             commands::json::json_unescape,
             commands::json::json_escape,
+            commands::diff::json_diff,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
