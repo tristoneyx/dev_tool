@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { MouseEvent as ReactMouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import { useJsonViewerStore, ARRAY_COLLAPSE_THRESHOLD } from "./store";
@@ -21,23 +21,19 @@ interface TreeProps {
 const ROW_HEIGHT = 28;
 /**
  * Conservative width estimate for one monospace character at text-sm in
- * Menlo/Monaco. Browsers actually render glyphs at ~8.4px so we round up
- * with a safety margin to avoid ever underestimating wrap height.
+ * Menlo/Monaco. Used only as a first-frame estimate before ResizeObserver
+ * reports the actual rendered height.
  */
 const APPROX_CHAR_PX = 9;
-/** Pixel height of one wrapped line for an expanded string. */
+/** Pixel height of one wrapped line for an expanded string (= leading-5). */
 const STRING_LINE_HEIGHT = 20;
-/** Vertical padding (top + bottom) on a wrapped string row. */
-const STRING_ROW_PADDING_PX = 10;
+/** Vertical padding (top + bottom) on a wrapped string row (= py-1 ×2). */
+const STRING_ROW_PADDING_PX = 8;
 /**
  * If a string would wrap into more than this many lines we auto-collapse
  * to a single-line preview with a manual "[展开]" toggle.
  */
 const STRING_AUTO_COLLAPSE_LINES = 30;
-/** Hard cap on row height even when the user has manually expanded. */
-const MAX_STRING_ROW_HEIGHT_PX = 1200;
-/** Extra buffer line added to every estimate as an overflow safety net. */
-const HEIGHT_SAFETY_LINES = 1;
 
 interface StringDisplay {
   isLong: boolean;
@@ -57,22 +53,17 @@ function stringDisplayFor(
   if (text.length === 0) {
     return { isLong: false, isCollapsed: false, expandedHeightPx: ROW_HEIGHT };
   }
-  // Indent + chevron column form the wrap padding for block layout. Add a
-  // generous right-side reserve for scrollbar / cell padding so we never
-  // overestimate available width.
+  // Indent + chevron column form the wrap padding for block layout.
   const padPx = v.depth * 16 + 8 + 16;
-  const availPx = Math.max(80, widthPx - padPx - 32);
+  const availPx = Math.max(80, widthPx - padPx - 16);
   const charsPerLine = Math.max(20, Math.floor(availPx / APPROX_CHAR_PX));
   // +2 for the surrounding quotes always rendered around string values.
   const rawLines = Math.max(1, Math.ceil((text.length + 2) / charsPerLine));
-  // Extra safety line so the slot is always >= rendered DOM height.
-  const lines = rawLines + HEIGHT_SAFETY_LINES;
   const isLong = rawLines > STRING_AUTO_COLLAPSE_LINES;
   const isCollapsed = isLong && !expandedStringSet.has(v.node.id);
-  const expandedHeightPx = Math.min(
-    lines * STRING_LINE_HEIGHT + STRING_ROW_PADDING_PX,
-    MAX_STRING_ROW_HEIGHT_PX,
-  );
+  // First-frame estimate; ResizeObserver replaces this with the measured
+  // height as soon as the row mounts (no cap — long strings show in full).
+  const expandedHeightPx = rawLines * STRING_LINE_HEIGHT + STRING_ROW_PADDING_PX;
   return { isLong, isCollapsed, expandedHeightPx };
 }
 
@@ -115,6 +106,42 @@ function useElementSize(): [
   return [ref, size];
 }
 
+/**
+ * Measures its child's natural height (offsetHeight) and feeds it back to
+ * react-window via the heights map so the slot is always = rendered height.
+ * Eliminates both overlap (estimate too low) and visible gaps (estimate
+ * too high) regardless of text-content shape.
+ */
+interface RowMeasureProps {
+  rowKey: string;
+  heightsRef: React.MutableRefObject<Map<string, number>>;
+  onHeightChange(): void;
+  children: ReactNode;
+}
+
+function RowMeasure({ rowKey, heightsRef, onHeightChange, children }: RowMeasureProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const measure = () => {
+      const h = el.offsetHeight;
+      if (h <= 0) return;
+      const prev = heightsRef.current.get(rowKey);
+      if (prev !== h) {
+        heightsRef.current.set(rowKey, h);
+        onHeightChange();
+      }
+    };
+    // Initial measurement plus updates whenever the content reflows.
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [rowKey, heightsRef, onHeightChange]);
+  return <div ref={ref}>{children}</div>;
+}
+
 interface MenuState {
   x: number;
   y: number;
@@ -139,6 +166,13 @@ export function Tree({ onRequestDrill }: TreeProps) {
   const listRef = useRef<VariableSizeList | null>(null);
   const [hostRef, size] = useElementSize();
   const [menu, setMenu] = useState<MenuState | null>(null);
+  // Measured row heights keyed by `${nodeId}-${closerFlag}`. Populated by
+  // <RowMeasure> after each row mounts and on subsequent reflows.
+  const heightsRef = useRef<Map<string, number>>(new Map());
+
+  const onMeasuredHeightChange = useCallback(() => {
+    listRef.current?.resetAfterIndex(0);
+  }, []);
 
   const visible: VisibleNode[] = useMemo(() => {
     if (!tree) return [];
@@ -165,12 +199,21 @@ export function Tree({ onRequestDrill }: TreeProps) {
   );
 
   const itemSize = useCallback(
-    (index: number) => estimateRowHeight(stringDisplays[index]),
-    [stringDisplays],
+    (index: number) => {
+      const v = visible[index];
+      const k = `${v.node.id}-${v.closer ? 1 : 0}`;
+      const measured = heightsRef.current.get(k);
+      if (measured !== undefined) return measured;
+      return estimateRowHeight(stringDisplays[index]);
+    },
+    [visible, stringDisplays],
   );
 
-  // Reset cached heights whenever inputs to estimateRowHeight change.
+  // Drop stale measurements on width / visibility / expansion changes; the
+  // freshly mounted RowMeasure components will populate the map again with
+  // up-to-date heights for the new layout.
   useEffect(() => {
+    heightsRef.current.clear();
     listRef.current?.resetAfterIndex(0);
   }, [visible, size.width, expandedStringSet]);
 
@@ -183,40 +226,53 @@ export function Tree({ onRequestDrill }: TreeProps) {
 
   const renderRow = ({ index, style }: ListChildComponentProps) => {
     const v = visible[index];
+    const k = `${v.node.id}-${v.closer ? 1 : 0}`;
     if (v.closer) {
       return (
-        <div style={{ ...style, overflow: "hidden" }}>
-          <div
-            className="text-sm font-mono leading-7 text-[color:var(--json-punctuation)] cursor-default"
-            style={{ height: ROW_HEIGHT, paddingLeft: `${v.depth * 16 + 8 + 16}px` }}
+        <div style={style}>
+          <RowMeasure
+            rowKey={k}
+            heightsRef={heightsRef}
+            onHeightChange={onMeasuredHeightChange}
           >
-            {v.closer}
-          </div>
+            <div
+              className="text-sm font-mono leading-7 text-[color:var(--json-punctuation)] cursor-default"
+              style={{ height: ROW_HEIGHT, paddingLeft: `${v.depth * 16 + 8 + 16}px` }}
+            >
+              {v.closer}
+            </div>
+          </RowMeasure>
         </div>
       );
     }
     const display = stringDisplays[index];
     return (
-      <div style={{ ...style, overflow: "hidden" }}>
-        <TreeNode
-          visible={v}
-          stringIsLong={display?.isLong ?? false}
-          isLongStringCollapsed={display?.isCollapsed ?? false}
-          onToggleCollapse={(id) => {
-            toggleCollapse(id);
-            listRef.current?.resetAfterIndex(0);
-          }}
-          onForceExpandArray={(id) => {
-            forceExpand(id);
-            listRef.current?.resetAfterIndex(0);
-          }}
-          onToggleStringExpand={(id) => {
-            toggleStringExpand(id);
-            listRef.current?.resetAfterIndex(0);
-          }}
-          onContextMenu={openMenu}
-          searchQuery={searchQuery}
-        />
+      <div style={style}>
+        <RowMeasure
+          rowKey={k}
+          heightsRef={heightsRef}
+          onHeightChange={onMeasuredHeightChange}
+        >
+          <TreeNode
+            visible={v}
+            stringIsLong={display?.isLong ?? false}
+            isLongStringCollapsed={display?.isCollapsed ?? false}
+            onToggleCollapse={(id) => {
+              toggleCollapse(id);
+              listRef.current?.resetAfterIndex(0);
+            }}
+            onForceExpandArray={(id) => {
+              forceExpand(id);
+              listRef.current?.resetAfterIndex(0);
+            }}
+            onToggleStringExpand={(id) => {
+              toggleStringExpand(id);
+              listRef.current?.resetAfterIndex(0);
+            }}
+            onContextMenu={openMenu}
+            searchQuery={searchQuery}
+          />
+        </RowMeasure>
       </div>
     );
   };

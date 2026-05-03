@@ -183,8 +183,8 @@ export function TreeNode({
           e.preventDefault();
           onContextMenu(node, e);
         }}
-        className="text-sm font-mono leading-5 hover:bg-[color:var(--bg-base)] cursor-default break-all whitespace-pre-wrap py-1"
-        style={{ paddingLeft: `${depth * 16 + 8 + 16}px` }}
+        className="text-sm font-mono leading-5 hover:bg-[color:var(--bg-base)] cursor-default break-all whitespace-pre-wrap"
+        style={{ paddingLeft: `${depth * 16 + 8 + 16}px`, paddingTop: 4, paddingBottom: 4 }}
       >
         {label && (
           <span className="text-[color:var(--json-key)]">
