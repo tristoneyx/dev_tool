@@ -65,29 +65,46 @@ export function Tree() {
     searchMode,
   ]);
 
-  const renderRow = ({ index, style }: ListChildComponentProps) => (
-    <div style={style}>
-      <TreeNode
-        visible={visible[index]}
-        onToggleCollapse={(id) => {
-          toggleCollapse(id);
-          listRef.current?.resetAfterIndex(0);
-        }}
-        onForceExpandArray={(id) => {
-          forceExpand(id);
-          listRef.current?.resetAfterIndex(0);
-        }}
-        onExpandNested={(node) => {
-          if (node.value.type === "string") {
-            void parseNested(node.id, node.value.value);
-          }
-        }}
-        onCollapseNested={collapseNested}
-        isNestedExpanded={(id) => nestedExpandedById.has(id)}
-        searchQuery={searchQuery}
-      />
-    </div>
-  );
+  const renderRow = ({ index, style }: ListChildComponentProps) => {
+    const v = visible[index];
+    if (v.closer) {
+      // Synthetic closer row: just the matching brace, indented under the
+      // opener's key column (chevron column + key column = depth*16 + 8 + 16).
+      return (
+        <div style={style}>
+          <div
+            className="text-sm font-mono leading-7 text-[color:var(--json-punctuation)] cursor-default"
+            style={{ height: ROW_HEIGHT, paddingLeft: `${v.depth * 16 + 8 + 16}px` }}
+          >
+            {v.closer}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div style={style}>
+        <TreeNode
+          visible={v}
+          onToggleCollapse={(id) => {
+            toggleCollapse(id);
+            listRef.current?.resetAfterIndex(0);
+          }}
+          onForceExpandArray={(id) => {
+            forceExpand(id);
+            listRef.current?.resetAfterIndex(0);
+          }}
+          onExpandNested={(node) => {
+            if (node.value.type === "string") {
+              void parseNested(node.id, node.value.value);
+            }
+          }}
+          onCollapseNested={collapseNested}
+          isNestedExpanded={(id) => nestedExpandedById.has(id)}
+          searchQuery={searchQuery}
+        />
+      </div>
+    );
+  };
 
   return (
     <div ref={hostRef} className="h-full w-full overflow-hidden relative">
@@ -118,9 +135,11 @@ function filterBySearch(
   mode: "key" | "value" | "both",
 ): VisibleNode[] {
   const q = query.toLowerCase();
-  // First, find the indices of nodes that match.
+  // First, find the indices of nodes that match. Skip closer rows — they
+  // share their opener's `node`, so checking them would double-count.
   const matches = new Set<number>();
   for (let i = 0; i < all.length; i++) {
+    if (all[i].closer) continue;
     const v = all[i];
     const keyText = keyText_(v);
     const valueText = valueText_(v);
@@ -135,10 +154,18 @@ function filterBySearch(
   for (const idx of matches) {
     let depth = all[idx].depth;
     for (let j = idx - 1; j >= 0 && depth > 0; j--) {
-      if (all[j].depth < depth) {
+      if (all[j].depth < depth && !all[j].closer) {
         include.add(j);
         depth = all[j].depth;
       }
+    }
+  }
+  // Re-include closers whose opener (same node.id) ended up in the include set.
+  const includedNodeIds = new Set<number>();
+  for (const idx of include) includedNodeIds.add(all[idx].node.id);
+  for (let i = 0; i < all.length; i++) {
+    if (all[i].closer && includedNodeIds.has(all[i].node.id)) {
+      include.add(i);
     }
   }
   return all.filter((_, i) => include.has(i));

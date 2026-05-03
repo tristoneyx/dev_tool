@@ -56,24 +56,54 @@ const defaultOpts: FlattenOptions = {
 };
 
 describe("flatten", () => {
-  it("emits all nodes when nothing is collapsed", () => {
+  it("emits all nodes when nothing is collapsed (ignoring closer rows)", () => {
     const list = flatten(tree, defaultOpts);
-    expect(list.map((v) => v.node.id)).toEqual([0, 1, 2, 3, 4, 5]);
+    const ids = list.filter((v) => !v.closer).map((v) => v.node.id);
+    expect(ids).toEqual([0, 1, 2, 3, 4, 5]);
+  });
+
+  it("emits closer rows for each expanded container", () => {
+    const list = flatten(tree, defaultOpts);
+    // Two expanded containers: root object (id 0), array b (id 2).
+    const closers = list.filter((v) => v.closer);
+    expect(closers.map((c) => ({ id: c.node.id, char: c.closer, depth: c.depth }))).toEqual([
+      { id: 2, char: "]", depth: 1 },
+      { id: 0, char: "}", depth: 0 },
+    ]);
+  });
+
+  it("skips closer for empty containers", () => {
+    const empty: JsonNode = {
+      id: 0,
+      key: { kind: "root" },
+      path: "",
+      value: { type: "object", key_count: 0, children: [] },
+    };
+    const list = flatten(empty, defaultOpts);
+    expect(list).toHaveLength(1);
+    expect(list[0].closer).toBeUndefined();
   });
 
   it("respects depth", () => {
     const list = flatten(tree, defaultOpts);
-    expect(list.find((v) => v.node.id === 0)!.depth).toBe(0);
+    expect(list.find((v) => v.node.id === 0 && !v.closer)!.depth).toBe(0);
     expect(list.find((v) => v.node.id === 1)!.depth).toBe(1);
     expect(list.find((v) => v.node.id === 3)!.depth).toBe(2);
   });
 
-  it("skips children of collapsed nodes", () => {
+  it("skips children of collapsed nodes (no closer either)", () => {
     const list = flatten(tree, {
       ...defaultOpts,
       collapseSet: new Set([2]),
     });
-    expect(list.map((v) => v.node.id)).toEqual([0, 1, 2]);
+    // root opener, child a, container b (collapsed → no children, no closer for b), root closer
+    const summary = list.map((v) => ({ id: v.node.id, closer: v.closer ?? null }));
+    expect(summary).toEqual([
+      { id: 0, closer: null },
+      { id: 1, closer: null },
+      { id: 2, closer: null },
+      { id: 0, closer: "}" },
+    ]);
   });
 
   it("auto-collapses arrays larger than threshold", () => {

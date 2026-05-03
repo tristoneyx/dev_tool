@@ -8,6 +8,11 @@ export interface VisibleNode {
   isCollapsed: boolean;
   collapseReason: CollapseReason | null;
   isExpandable: boolean;
+  /**
+   * When set, this row is a synthetic closer for an expanded object/array.
+   * `node` references the OPENER node (so we can correlate during search).
+   */
+  closer?: "}" | "]";
 }
 
 export interface FlattenOptions {
@@ -48,11 +53,23 @@ function walk(
   // Recurse into children based on node type.
   switch (node.value.type) {
     case "object":
-    case "array":
+    case "array": {
+      // Skip closer rows for empty containers — the opener already shows {} or [].
+      if (node.value.children.length === 0) break;
       for (const child of node.value.children) {
         walk(child, depth + 1, opts, out);
       }
+      // Emit a synthetic closer row at the parent's depth.
+      out.push({
+        node,
+        depth,
+        isCollapsed: false,
+        collapseReason: null,
+        isExpandable: false,
+        closer: node.value.type === "object" ? "}" : "]",
+      });
       break;
+    }
     case "string": {
       const sub = opts.nestedExpandedById.get(node.id);
       if (sub) walk(sub, depth + 1, opts, out);
