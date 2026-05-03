@@ -18,8 +18,6 @@ interface TreeNodeProps {
   searchQuery: string;
 }
 
-const ROW_HEIGHT = 28;
-
 function keyLabel(node: JsonNode): string {
   if (node.key.kind === "root") return "";
   if (node.key.kind === "array") return `[${node.key.index}]`;
@@ -101,6 +99,10 @@ export function TreeNode({
   const { node, depth, isCollapsed, collapseReason, isExpandable } = visible;
 
   const indent = { paddingLeft: `${depth * 16 + 8}px` };
+  // String values wrap to multiple lines so the user sees the whole content
+  // in place. Other value types stay on one line.
+  const isWrappingString =
+    !isCollapsed && node.value.type === "string" && node.value.value.length > 0;
 
   const renderValueNode = (): React.ReactNode => {
     if (isCollapsed) {
@@ -143,29 +145,37 @@ export function TreeNode({
 
   return (
     <div
-      className="group flex items-center gap-1 text-sm font-mono leading-7 hover:bg-[color:var(--bg-base)] cursor-default"
-      style={{ height: ROW_HEIGHT, ...indent }}
+      className={`group flex gap-1 text-sm font-mono hover:bg-[color:var(--bg-base)] cursor-default ${isWrappingString ? "items-start py-1" : "items-center leading-7 h-7"}`}
+      style={indent}
     >
       {isExpandable ? (
         <button
           type="button"
           onClick={() => onToggleCollapse(node.id)}
-          className="w-4 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
+          className="w-4 shrink-0 text-[color:var(--text-muted)] hover:text-[color:var(--text-primary)]"
         >
           {isCollapsed ? "▸" : "▾"}
         </button>
       ) : (
-        <span className="w-4" />
+        <span className="w-4 shrink-0" />
       )}
 
       {label && (
-        <span className="text-[color:var(--json-key)]">
+        <span className="shrink-0 text-[color:var(--json-key)]">
           {highlight(label, searchQuery)}
           <span className="text-[color:var(--json-punctuation)]">: </span>
         </span>
       )}
 
-      <span className="truncate">{renderValueNode()}</span>
+      <span
+        className={
+          isWrappingString
+            ? "min-w-0 flex-1 break-all whitespace-pre-wrap leading-5"
+            : "truncate"
+        }
+      >
+        {renderValueNode()}
+      </span>
 
       {collapseReason === "auto_array_threshold" &&
         node.value.type === "array" && (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import { useJsonViewerStore, ARRAY_COLLAPSE_THRESHOLD } from "./store";
@@ -14,6 +14,52 @@ interface TreeProps {
 }
 
 const ROW_HEIGHT = 28;
+/** Approximate width of one monospace character at the row's font-size. */
+const APPROX_CHAR_PX = 7.2;
+/** Pixels per wrapped line of string content. */
+const STRING_LINE_HEIGHT = 20;
+/** Vertical padding (top + bottom) reserved on a wrapped string row. */
+const STRING_ROW_PADDING_PX = 10;
+/** Hard cap so a single huge string doesn't push the row past one screen. */
+const MAX_STRING_ROW_HEIGHT_PX = 600;
+
+/**
+ * Estimate how tall a row needs to be. String values wrap to as many lines
+ * as needed (capped) so the user sees the full content in place; everything
+ * else uses the fixed ROW_HEIGHT.
+ */
+function estimateRowHeight(v: VisibleNode, widthPx: number): number {
+  if (v.closer) return ROW_HEIGHT;
+  if (v.isCollapsed) return ROW_HEIGHT;
+  if (v.node.value.type !== "string") return ROW_HEIGHT;
+  const text = v.node.value.value;
+  if (text.length === 0) return ROW_HEIGHT;
+
+  // Reserve horizontal space for indent (depth*16+8), chevron column (~16),
+  // key label, and the right-side "JSON … keys" badge / copy buttons.
+  const keyName =
+    v.node.key.kind === "object"
+      ? v.node.key.name
+      : v.node.key.kind === "array"
+        ? String(v.node.key.index)
+        : "";
+  const keyPx = (keyName.length + 4) * APPROX_CHAR_PX; // "key": ≈ keyName + 4
+  const reservedPx =
+    v.depth * 16 + 8 + // indent
+    16 + // chevron column
+    keyPx +
+    180; // badge + buttons + scrollbar safety
+
+  const availPx = Math.max(80, widthPx - reservedPx);
+  const charsPerLine = Math.max(20, Math.floor(availPx / APPROX_CHAR_PX));
+  // +2 for the surrounding quotes we always render around the string value.
+  const lines = Math.max(1, Math.ceil((text.length + 2) / charsPerLine));
+  if (lines === 1) return ROW_HEIGHT;
+  return Math.min(
+    lines * STRING_LINE_HEIGHT + STRING_ROW_PADDING_PX,
+    MAX_STRING_ROW_HEIGHT_PX,
+  );
+}
 
 /** Measure the bounding box of a parent so react-window gets explicit dims. */
 function useElementSize(): [
@@ -68,6 +114,17 @@ export function Tree({ onRequestDrill }: TreeProps) {
     searchMode,
   ]);
 
+  const itemSize = useCallback(
+    (index: number) => estimateRowHeight(visible[index], size.width),
+    [visible, size.width],
+  );
+
+  // Reset cached heights whenever the visible set or container width changes —
+  // both can change estimateRowHeight's output.
+  useEffect(() => {
+    listRef.current?.resetAfterIndex(0);
+  }, [visible, size.width]);
+
   const renderRow = ({ index, style }: ListChildComponentProps) => {
     const v = visible[index];
     if (v.closer) {
@@ -116,7 +173,7 @@ export function Tree({ onRequestDrill }: TreeProps) {
           height={size.height}
           width={size.width}
           itemCount={visible.length}
-          itemSize={() => ROW_HEIGHT}
+          itemSize={itemSize}
           overscanCount={20}
         >
           {renderRow}
