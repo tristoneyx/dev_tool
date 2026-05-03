@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { VariableSizeList, type ListChildComponentProps } from "react-window";
 import { useJsonViewerStore, ARRAY_COLLAPSE_THRESHOLD } from "./store";
 import { flatten, type VisibleNode } from "./flatten";
 import { TreeNode } from "./TreeNode";
+import { ContextMenu, type ContextMenuItem } from "./ContextMenu";
+import { copyToClipboard } from "../../lib/clipboard";
+import { useToastStore } from "../../shell/toastStore";
+import type { JsonNode } from "../../types/ipc";
 
 interface TreeProps {
   /**
-   * Called when user clicks the ⤷ JSON badge on a string-as-JSON node.
-   * Parent decides whether to prompt for save before drilling.
+   * Called when user picks "Open nested JSON as new record" in the row's
+   * context menu. Parent decides whether to prompt for save before drilling.
    */
   onRequestDrill(stringValue: string): void;
 }
@@ -16,49 +21,66 @@ interface TreeProps {
 const ROW_HEIGHT = 28;
 /** Approximate width of one monospace character at the row's font-size. */
 const APPROX_CHAR_PX = 7.2;
-/** Pixels per wrapped line of string content. */
+/** Pixel height of one wrapped line for an expanded string. */
 const STRING_LINE_HEIGHT = 20;
-/** Vertical padding (top + bottom) reserved on a wrapped string row. */
+/** Vertical padding (top + bottom) on a wrapped string row. */
 const STRING_ROW_PADDING_PX = 10;
-/** Hard cap so a single huge string doesn't push the row past one screen. */
-const MAX_STRING_ROW_HEIGHT_PX = 600;
-
 /**
- * Estimate how tall a row needs to be. String values wrap to as many lines
- * as needed (capped) so the user sees the full content in place; everything
- * else uses the fixed ROW_HEIGHT.
+ * If a string would wrap into more than this many lines we auto-collapse
+ * to a single-line preview with a manual "[展开]" toggle.
  */
-function estimateRowHeight(v: VisibleNode, widthPx: number): number {
-  if (v.closer) return ROW_HEIGHT;
-  if (v.isCollapsed) return ROW_HEIGHT;
-  if (v.node.value.type !== "string") return ROW_HEIGHT;
+const STRING_AUTO_COLLAPSE_LINES = 30;
+/** Hard cap on row height even when the user has manually expanded. */
+const MAX_STRING_ROW_HEIGHT_PX = 1200;
+
+interface StringDisplay {
+  isLong: boolean;
+  isCollapsed: boolean;
+  /** Estimated height in pixels when this string is expanded. */
+  expandedHeightPx: number;
+}
+
+function stringDisplayFor(
+  v: VisibleNode,
+  widthPx: number,
+  expandedStringSet: Set<number>,
+): StringDisplay | null {
+  if (v.closer || v.isCollapsed) return null;
+  if (v.node.value.type !== "string") return null;
   const text = v.node.value.value;
-  if (text.length === 0) return ROW_HEIGHT;
-
-  // Reserve horizontal space for indent (depth*16+8), chevron column (~16),
-  // key label, and the right-side "JSON … keys" badge / copy buttons.
-  const keyName =
-    v.node.key.kind === "object"
-      ? v.node.key.name
-      : v.node.key.kind === "array"
-        ? String(v.node.key.index)
-        : "";
-  const keyPx = (keyName.length + 4) * APPROX_CHAR_PX; // "key": ≈ keyName + 4
-  const reservedPx =
-    v.depth * 16 + 8 + // indent
-    16 + // chevron column
-    keyPx +
-    180; // badge + buttons + scrollbar safety
-
-  const availPx = Math.max(80, widthPx - reservedPx);
+  if (text.length === 0) {
+    return { isLong: false, isCollapsed: false, expandedHeightPx: ROW_HEIGHT };
+  }
+  // Indent + chevron column form the wrap padding for block layout.
+  const padPx = v.depth * 16 + 8 + 16;
+  const availPx = Math.max(80, widthPx - padPx - 16); // -16 for safety
   const charsPerLine = Math.max(20, Math.floor(availPx / APPROX_CHAR_PX));
-  // +2 for the surrounding quotes we always render around the string value.
+  // +2 for the surrounding quotes always rendered around string values.
   const lines = Math.max(1, Math.ceil((text.length + 2) / charsPerLine));
-  if (lines === 1) return ROW_HEIGHT;
-  return Math.min(
+  const isLong = lines > STRING_AUTO_COLLAPSE_LINES;
+  const isCollapsed = isLong && !expandedStringSet.has(v.node.id);
+  const expandedHeightPx = Math.min(
     lines * STRING_LINE_HEIGHT + STRING_ROW_PADDING_PX,
     MAX_STRING_ROW_HEIGHT_PX,
   );
+  return { isLong, isCollapsed, expandedHeightPx };
+}
+
+/**
+ * Estimate how tall a row needs to be. Strings that aren't auto-collapsed
+ * wrap to as many lines as needed; everything else uses ROW_HEIGHT.
+ */
+function estimateRowHeight(display: StringDisplay | null): number {
+  if (!display) return ROW_HEIGHT;
+  if (display.isCollapsed) return ROW_HEIGHT;
+  if (!display.isLong && display.expandedHeightPx <= ROW_HEIGHT) {
+    return display.expandedHeightPx;
+  }
+  // Short multi-line strings still get their wrap height; long expanded
+  // strings get the capped expandedHeightPx.
+  return display.expandedHeightPx > ROW_HEIGHT
+    ? display.expandedHeightPx
+    : ROW_HEIGHT;
 }
 
 /** Measure the bounding box of a parent so react-window gets explicit dims. */
@@ -83,19 +105,30 @@ function useElementSize(): [
   return [ref, size];
 }
 
+interface MenuState {
+  x: number;
+  y: number;
+  node: JsonNode;
+}
+
 export function Tree({ onRequestDrill }: TreeProps) {
   const { t } = useTranslation();
   const tree = useJsonViewerStore((s) => s.tree);
   const collapseSet = useJsonViewerStore((s) => s.collapseSet);
   const forceExpandedSet = useJsonViewerStore((s) => s.forceExpandedSet);
+  const expandedStringSet = useJsonViewerStore((s) => s.expandedStringSet);
   const searchQuery = useJsonViewerStore((s) => s.searchQuery);
   const searchMode = useJsonViewerStore((s) => s.searchMode);
 
   const toggleCollapse = useJsonViewerStore((s) => s.toggleCollapse);
   const forceExpand = useJsonViewerStore((s) => s.forceExpandArray);
+  const toggleStringExpand = useJsonViewerStore((s) => s.toggleStringExpand);
+
+  const push = useToastStore((s) => s.push);
 
   const listRef = useRef<VariableSizeList | null>(null);
   const [hostRef, size] = useElementSize();
+  const [menu, setMenu] = useState<MenuState | null>(null);
 
   const visible: VisibleNode[] = useMemo(() => {
     if (!tree) return [];
@@ -114,22 +147,33 @@ export function Tree({ onRequestDrill }: TreeProps) {
     searchMode,
   ]);
 
-  const itemSize = useCallback(
-    (index: number) => estimateRowHeight(visible[index], size.width),
-    [visible, size.width],
+  // Pre-compute string-display state per visible row so renderRow + itemSize
+  // both see the same answer.
+  const stringDisplays = useMemo(
+    () => visible.map((v) => stringDisplayFor(v, size.width, expandedStringSet)),
+    [visible, size.width, expandedStringSet],
   );
 
-  // Reset cached heights whenever the visible set or container width changes —
-  // both can change estimateRowHeight's output.
+  const itemSize = useCallback(
+    (index: number) => estimateRowHeight(stringDisplays[index]),
+    [stringDisplays],
+  );
+
+  // Reset cached heights whenever inputs to estimateRowHeight change.
   useEffect(() => {
     listRef.current?.resetAfterIndex(0);
-  }, [visible, size.width]);
+  }, [visible, size.width, expandedStringSet]);
+
+  const openMenu = useCallback(
+    (node: JsonNode, evt: ReactMouseEvent) => {
+      setMenu({ x: evt.clientX, y: evt.clientY, node });
+    },
+    [],
+  );
 
   const renderRow = ({ index, style }: ListChildComponentProps) => {
     const v = visible[index];
     if (v.closer) {
-      // Synthetic closer row: just the matching brace, indented under the
-      // opener's key column (chevron column + key column = depth*16 + 8 + 16).
       return (
         <div style={style}>
           <div
@@ -141,10 +185,13 @@ export function Tree({ onRequestDrill }: TreeProps) {
         </div>
       );
     }
+    const display = stringDisplays[index];
     return (
       <div style={style}>
         <TreeNode
           visible={v}
+          stringIsLong={display?.isLong ?? false}
+          isLongStringCollapsed={display?.isCollapsed ?? false}
           onToggleCollapse={(id) => {
             toggleCollapse(id);
             listRef.current?.resetAfterIndex(0);
@@ -153,12 +200,48 @@ export function Tree({ onRequestDrill }: TreeProps) {
             forceExpand(id);
             listRef.current?.resetAfterIndex(0);
           }}
-          onDrillIntoNested={onRequestDrill}
+          onToggleStringExpand={(id) => {
+            toggleStringExpand(id);
+            listRef.current?.resetAfterIndex(0);
+          }}
+          onContextMenu={openMenu}
           searchQuery={searchQuery}
         />
       </div>
     );
   };
+
+  const menuItems: ContextMenuItem[] = useMemo(() => {
+    if (!menu) return [];
+    const node = menu.node;
+    const items: ContextMenuItem[] = [];
+    if (node.value.type === "string" && node.value.nested_hint) {
+      items.push({
+        label: t("json_viewer.open_nested_as_new"),
+        emphasis: true,
+        onClick: () => {
+          if (node.value.type === "string") {
+            onRequestDrill(node.value.value);
+          }
+        },
+      });
+    }
+    items.push({
+      label: t("json_viewer.copy_value"),
+      onClick: async () => {
+        await copyToClipboard(serializeForCopy(node));
+        push("success", t("json_viewer.copied_toast"));
+      },
+    });
+    items.push({
+      label: t("json_viewer.copy_path"),
+      onClick: async () => {
+        await copyToClipboard(node.path);
+        push("success", t("json_viewer.copied_toast"));
+      },
+    });
+    return items;
+  }, [menu, t, onRequestDrill, push]);
 
   return (
     <div ref={hostRef} className="h-full w-full overflow-hidden relative">
@@ -179,6 +262,14 @@ export function Tree({ onRequestDrill }: TreeProps) {
           {renderRow}
         </VariableSizeList>
       )}
+      {menu && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          items={menuItems}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   );
 }
@@ -189,8 +280,6 @@ function filterBySearch(
   mode: "key" | "value" | "both",
 ): VisibleNode[] {
   const q = query.toLowerCase();
-  // First, find the indices of nodes that match. Skip closer rows — they
-  // share their opener's `node`, so checking them would double-count.
   const matches = new Set<number>();
   for (let i = 0; i < all.length; i++) {
     if (all[i].closer) continue;
@@ -203,7 +292,6 @@ function filterBySearch(
     if (hits) matches.add(i);
   }
   if (matches.size === 0) return [];
-  // Build the visible set: for each match, include its ancestor chain (anything with smaller depth, scanning backwards).
   const include = new Set<number>(matches);
   for (const idx of matches) {
     let depth = all[idx].depth;
@@ -214,7 +302,6 @@ function filterBySearch(
       }
     }
   }
-  // Re-include closers whose opener (same node.id) ended up in the include set.
   const includedNodeIds = new Set<number>();
   for (const idx of include) includedNodeIds.add(all[idx].node.id);
   for (let i = 0; i < all.length; i++) {
@@ -243,5 +330,43 @@ function valueText_(v: VisibleNode): string {
       return v.node.value.value;
     default:
       return "";
+  }
+}
+
+function serializeForCopy(node: JsonNode): string {
+  switch (node.value.type) {
+    case "null":
+      return "null";
+    case "bool":
+      return node.value.value ? "true" : "false";
+    case "number":
+      return node.value.raw;
+    case "string":
+      return node.value.value;
+    case "object":
+    case "array":
+      return JSON.stringify(rebuildPlain(node), null, 2);
+  }
+}
+
+function rebuildPlain(node: JsonNode): unknown {
+  switch (node.value.type) {
+    case "null":
+      return null;
+    case "bool":
+      return node.value.value;
+    case "number":
+      return Number(node.value.raw);
+    case "string":
+      return node.value.value;
+    case "object": {
+      const out: Record<string, unknown> = {};
+      for (const c of node.value.children) {
+        if (c.key.kind === "object") out[c.key.name] = rebuildPlain(c);
+      }
+      return out;
+    }
+    case "array":
+      return node.value.children.map(rebuildPlain);
   }
 }

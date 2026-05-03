@@ -1,20 +1,20 @@
+import type { MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { JsonNode, NodeValue } from "../../types/ipc";
 import { previewArray, previewObject } from "./nodePreview";
 import type { VisibleNode } from "./flatten";
-import { copyToClipboard } from "../../lib/clipboard";
-import { useToastStore } from "../../shell/toastStore";
 
 interface TreeNodeProps {
   visible: VisibleNode;
+  /** True if the string value would auto-collapse based on length. */
+  stringIsLong: boolean;
+  /** True if the string is currently auto-collapsed (long AND not user-expanded). */
+  isLongStringCollapsed: boolean;
   onToggleCollapse(id: number): void;
   onForceExpandArray(id: number): void;
-  /**
-   * User clicked the ⤷ JSON badge on a string-as-JSON node. Caller is
-   * responsible for any "save current first?" confirmation flow before
-   * actually drilling into the new record.
-   */
-  onDrillIntoNested(stringValue: string): void;
+  onToggleStringExpand(id: number): void;
+  /** Right-click anywhere on the row opens the context menu via this callback. */
+  onContextMenu(node: JsonNode, evt: ReactMouseEvent): void;
   searchQuery: string;
 }
 
@@ -41,10 +41,16 @@ function highlight(text: string, query: string): React.ReactNode {
   );
 }
 
+/** Preview head of a long string when auto-collapsed (≤ 1 line). */
+const LONG_STRING_PREVIEW_CHARS = 80;
+
 /** Render a primitive (or empty container literal) value with type-specific color. */
 function renderTypedValue(
   value: NodeValue,
   searchQuery: string,
+  isLongStringCollapsed: boolean,
+  onToggleStringExpand: () => void,
+  t: (key: string, opts?: Record<string, unknown>) => string,
 ): React.ReactNode {
   switch (value.type) {
     case "null":
@@ -66,8 +72,27 @@ function renderTypedValue(
         </span>
       );
     case "string": {
-      // Show the full string content. CSS `truncate` on the parent span
-      // handles overflow naturally based on viewport width.
+      if (isLongStringCollapsed) {
+        const preview = value.value.slice(0, LONG_STRING_PREVIEW_CHARS);
+        return (
+          <span className="text-[color:var(--json-string)]">
+            <span className="text-[color:var(--json-punctuation)]">"</span>
+            {highlight(preview, searchQuery)}
+            <span className="text-[color:var(--text-muted)]">…</span>
+            <span className="text-[color:var(--json-punctuation)]">"</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleStringExpand();
+              }}
+              className="ml-2 text-xs text-[color:var(--accent)] hover:underline"
+            >
+              {t("json_viewer.expand_string", { n: value.value.length })}
+            </button>
+          </span>
+        );
+      }
       return (
         <span className="text-[color:var(--json-string)]">
           <span className="text-[color:var(--json-punctuation)]">"</span>
@@ -89,20 +114,26 @@ function renderTypedValue(
 
 export function TreeNode({
   visible,
+  stringIsLong,
+  isLongStringCollapsed,
   onToggleCollapse,
   onForceExpandArray,
-  onDrillIntoNested,
+  onToggleStringExpand,
+  onContextMenu,
   searchQuery,
 }: TreeNodeProps) {
   const { t } = useTranslation();
-  const push = useToastStore((s) => s.push);
   const { node, depth, isCollapsed, collapseReason, isExpandable } = visible;
 
-  const indent = { paddingLeft: `${depth * 16 + 8}px` };
-  // String values wrap to multiple lines so the user sees the whole content
-  // in place. Other value types stay on one line.
+  // String values that aren't auto-collapsed flow as block text so they wrap
+  // aligned at the indent column. Other values stay on a single line.
   const isWrappingString =
-    !isCollapsed && node.value.type === "string" && node.value.value.length > 0;
+    !isCollapsed &&
+    !isLongStringCollapsed &&
+    node.value.type === "string" &&
+    node.value.value.length > 0;
+
+  const indent = { paddingLeft: `${depth * 16 + 8}px` };
 
   const renderValueNode = (): React.ReactNode => {
     if (isCollapsed) {
@@ -128,24 +159,88 @@ export function TreeNode({
           </span>
         );
       }
-      return renderTypedValue(node.value, searchQuery);
+      return renderTypedValue(
+        node.value,
+        searchQuery,
+        false,
+        () => {},
+        t,
+      );
     }
     if (node.value.type === "object" || node.value.type === "array") {
-      // Show an opening brace/bracket so structure is still visible while expanded.
       return (
         <span className="text-[color:var(--json-punctuation)]">
           {node.value.type === "object" ? "{" : "["}
         </span>
       );
     }
-    return renderTypedValue(node.value, searchQuery);
+    return renderTypedValue(
+      node.value,
+      searchQuery,
+      isLongStringCollapsed,
+      () => onToggleStringExpand(node.id),
+      t,
+    );
   };
 
   const label = keyLabel(node);
 
+  // Expand-all override for auto-collapsed huge arrays.
+  const arrayExpandAll =
+    collapseReason === "auto_array_threshold" && node.value.type === "array";
+
+  // Inline "collapse" link for an explicitly expanded long string.
+  const showCollapseLink =
+    !isCollapsed &&
+    !isLongStringCollapsed &&
+    node.value.type === "string" &&
+    stringIsLong;
+
+  if (isWrappingString) {
+    // BLOCK layout: text wraps at the row's left content edge so continuation
+    // lines align under the chevron column. The chevron column is rendered
+    // via padding (no flex shrink games), and the key + value are inline so
+    // the wrap context is a single line of text.
+    return (
+      <div
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onContextMenu(node, e);
+        }}
+        className="text-sm font-mono leading-5 hover:bg-[color:var(--bg-base)] cursor-default break-all whitespace-pre-wrap py-1"
+        style={{ paddingLeft: `${depth * 16 + 8 + 16}px` }}
+      >
+        {label && (
+          <span className="text-[color:var(--json-key)]">
+            {highlight(label, searchQuery)}
+            <span className="text-[color:var(--json-punctuation)]">: </span>
+          </span>
+        )}
+        {renderValueNode()}
+        {showCollapseLink && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStringExpand(node.id);
+            }}
+            className="ml-2 text-xs text-[color:var(--accent)] hover:underline"
+          >
+            {t("json_viewer.collapse_string")}
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Single-line row layout (default).
   return (
     <div
-      className={`group flex gap-1 text-sm font-mono hover:bg-[color:var(--bg-base)] cursor-default ${isWrappingString ? "items-start py-1" : "items-center leading-7 h-7"}`}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onContextMenu(node, e);
+      }}
+      className="flex items-center gap-1 text-sm font-mono leading-7 h-7 hover:bg-[color:var(--bg-base)] cursor-default"
       style={indent}
     >
       {isExpandable ? (
@@ -167,102 +262,17 @@ export function TreeNode({
         </span>
       )}
 
-      <span
-        className={
-          isWrappingString
-            ? "min-w-0 flex-1 break-all whitespace-pre-wrap leading-5"
-            : "truncate"
-        }
-      >
-        {renderValueNode()}
-      </span>
+      <span className="truncate">{renderValueNode()}</span>
 
-      {collapseReason === "auto_array_threshold" &&
-        node.value.type === "array" && (
-          <button
-            type="button"
-            onClick={() => onForceExpandArray(node.id)}
-            className="ml-2 text-xs text-[color:var(--accent)] hover:underline"
-          >
-            {t("json_viewer.expand_all_n", { n: node.value.item_count })}
-          </button>
-        )}
-
-      {node.value.type === "string" && node.value.nested_hint && (
+      {arrayExpandAll && node.value.type === "array" && (
         <button
           type="button"
-          onClick={() => {
-            if (node.value.type === "string") {
-              onDrillIntoNested(node.value.value);
-            }
-          }}
+          onClick={() => onForceExpandArray(node.id)}
           className="ml-2 shrink-0 text-xs text-[color:var(--accent)] hover:underline"
-          title={t("json_viewer.open_nested_as_new")}
         >
-          ⤷ JSON {node.value.nested_hint.kind_summary}
+          {t("json_viewer.expand_all_n", { n: node.value.item_count })}
         </button>
       )}
-
-      <div className="ml-auto opacity-0 hover:opacity-100 group-hover:opacity-100 flex gap-2 text-xs text-[color:var(--text-muted)]">
-        <button
-          type="button"
-          onClick={async () => {
-            await copyToClipboard(serializeForCopy(node));
-            push("success", t("json_viewer.copied_toast"));
-          }}
-          className="hover:text-[color:var(--text-primary)]"
-        >
-          {t("json_viewer.copy_value")}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            await copyToClipboard(node.path);
-            push("success", t("json_viewer.copied_toast"));
-          }}
-          className="hover:text-[color:var(--text-primary)]"
-        >
-          {t("json_viewer.copy_path")}
-        </button>
-      </div>
     </div>
   );
-}
-
-function serializeForCopy(node: JsonNode): string {
-  switch (node.value.type) {
-    case "null":
-      return "null";
-    case "bool":
-      return node.value.value ? "true" : "false";
-    case "number":
-      return node.value.raw;
-    case "string":
-      return node.value.value;
-    case "object":
-    case "array":
-      return JSON.stringify(rebuildPlain(node), null, 2);
-  }
-}
-
-function rebuildPlain(node: JsonNode): unknown {
-  switch (node.value.type) {
-    case "null":
-      return null;
-    case "bool":
-      return node.value.value;
-    case "number":
-      return Number(node.value.raw);
-    case "string":
-      return node.value.value;
-    case "object": {
-      const out: Record<string, unknown> = {};
-      for (const c of node.value.children) {
-        if (c.key.kind === "object") out[c.key.name] = rebuildPlain(c);
-      }
-      return out;
-    }
-    case "array":
-      return node.value.children.map(rebuildPlain);
-  }
 }

@@ -20,6 +20,8 @@ interface JsonViewerState {
   unescapeLayers: number;
   collapseSet: Set<number>;
   forceExpandedSet: Set<number>;
+  /** Per-string-node "show full content" overrides for auto-collapsed long strings. */
+  expandedStringSet: Set<number>;
   searchQuery: string;
   searchMode: SearchMode;
   loadedHistoryId: number | null;
@@ -39,6 +41,8 @@ interface JsonViewerState {
   parse(text: string): Promise<void>;
   toggleCollapse(nodeId: number): void;
   forceExpandArray(nodeId: number): void;
+  /** Toggle "show full content" for an auto-collapsed long string. */
+  toggleStringExpand(nodeId: number): void;
   setSearch(query: string, mode: SearchMode): void;
   clear(): void;
   setLoadedHistoryId(id: number | null): void;
@@ -65,6 +69,7 @@ const initial = {
   unescapeLayers: 0,
   collapseSet: new Set<number>(),
   forceExpandedSet: new Set<number>(),
+  expandedStringSet: new Set<number>(),
   searchQuery: "",
   searchMode: "both" as SearchMode,
   loadedHistoryId: null as number | null,
@@ -92,6 +97,7 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
         unescapeLayers: tree.unescape_layers,
         collapseSet: new Set(),
         forceExpandedSet: new Set(),
+        expandedStringSet: new Set(),
       });
     } catch (e) {
       if (e instanceof IpcError && e.app.code === "parse") {
@@ -123,6 +129,13 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
     set({ forceExpandedSet: next });
   },
 
+  toggleStringExpand(nodeId) {
+    const next = new Set(get().expandedStringSet);
+    if (next.has(nodeId)) next.delete(nodeId);
+    else next.add(nodeId);
+    set({ expandedStringSet: next });
+  },
+
   setSearch(query, mode) {
     set({ searchQuery: query, searchMode: mode });
   },
@@ -132,6 +145,7 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
       ...initial,
       collapseSet: new Set(),
       forceExpandedSet: new Set(),
+      expandedStringSet: new Set(),
     });
   },
 
@@ -162,6 +176,7 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
       pendingDrillInto: null,
       collapseSet: new Set(),
       forceExpandedSet: new Set(),
+      expandedStringSet: new Set(),
     });
     await get().parse(value);
   },

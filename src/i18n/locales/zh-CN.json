@@ -51,6 +51,8 @@
     "copy_path": "复制路径",
     "open_nested_as_new": "作为新记录打开嵌套 JSON",
     "expand_all_n": "展开全部 {{n}} 项",
+    "expand_string": "展开（{{n}} 字符）",
+    "collapse_string": "收起",
     "drill_confirm_heading": "打开嵌套 JSON",
     "drill_confirm_message": "当前记录有未保存的修改，是否先保存再打开嵌套 JSON？",
     "drill_save_and_open": "保存并打开",

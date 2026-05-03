@@ -51,6 +51,8 @@
     "copy_path": "Copy path",
     "open_nested_as_new": "Open nested JSON as a new record",
     "expand_all_n": "Expand all {{n}} items",
+    "expand_string": "Expand ({{n}} chars)",
+    "collapse_string": "Collapse",
     "drill_confirm_heading": "Open nested JSON",
     "drill_confirm_message": "You have unsaved changes. Save the current record before opening the nested JSON?",
     "drill_save_and_open": "Save and open",

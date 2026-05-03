@@ -121,5 +121,12 @@ describe("json viewer store", () => {
       useJsonViewerStore.getState().setPendingDrillInto(null);
       expect(useJsonViewerStore.getState().pendingDrillInto).toBeNull();
     });
+
+    it("toggleStringExpand toggles a string's expansion override", () => {
+      useJsonViewerStore.getState().toggleStringExpand(42);
+      expect(useJsonViewerStore.getState().expandedStringSet.has(42)).toBe(true);
+      useJsonViewerStore.getState().toggleStringExpand(42);
+      expect(useJsonViewerStore.getState().expandedStringSet.has(42)).toBe(false);
+    });
   });
 });
