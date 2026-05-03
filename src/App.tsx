@@ -33,6 +33,7 @@ export default function App() {
     if (item.content.tool === "json_viewer") {
       useJsonViewerStore.getState().setInput(item.content.input);
       useJsonViewerStore.getState().setLoadedHistoryId(item.id);
+      useJsonViewerStore.getState().setSavedInput(item.content.input);
       void useJsonViewerStore.getState().parse(item.content.input);
       push("success", t("common.loaded_history_toast", { title: item.title }));
       return;

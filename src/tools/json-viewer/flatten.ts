@@ -22,8 +22,6 @@ export interface FlattenOptions {
   forceExpandedSet?: Set<number>;
   /** Arrays with more than this many items are auto-collapsed. */
   arrayCollapseThreshold: number;
-  /** Per-node parsed nested-JSON subtree (string nodes whose value is JSON). */
-  nestedExpandedById: Map<number, JsonNode>;
 }
 
 export function flatten(root: JsonNode, opts: FlattenOptions): VisibleNode[] {
@@ -38,7 +36,7 @@ function walk(
   opts: FlattenOptions,
   out: VisibleNode[],
 ): void {
-  const isExpandable = nodeIsExpandable(node, opts);
+  const isExpandable = nodeIsExpandable(node);
   const collapsed = computeCollapsed(node, opts);
   out.push({
     node,
@@ -70,22 +68,14 @@ function walk(
       });
       break;
     }
-    case "string": {
-      const sub = opts.nestedExpandedById.get(node.id);
-      if (sub) walk(sub, depth + 1, opts, out);
-      break;
-    }
     default:
       break;
   }
 }
 
-function nodeIsExpandable(node: JsonNode, opts: FlattenOptions): boolean {
+function nodeIsExpandable(node: JsonNode): boolean {
   if (node.value.type === "object") return node.value.children.length > 0;
   if (node.value.type === "array") return node.value.children.length > 0;
-  if (node.value.type === "string") {
-    return opts.nestedExpandedById.has(node.id) || node.value.nested_hint !== null;
-  }
   return false;
 }
 

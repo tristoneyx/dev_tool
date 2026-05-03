@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { jsonApi } from "./api";
 import { IpcError } from "../../lib/ipc";
-import type { JsonNode, JsonTree } from "../../types/ipc";
+import type { JsonTree } from "../../types/ipc";
 
 export const ARRAY_COLLAPSE_THRESHOLD = 100;
 
@@ -20,20 +20,42 @@ interface JsonViewerState {
   unescapeLayers: number;
   collapseSet: Set<number>;
   forceExpandedSet: Set<number>;
-  nestedExpandedById: Map<number, JsonNode>;
   searchQuery: string;
   searchMode: SearchMode;
   loadedHistoryId: number | null;
+  /**
+   * The text that was last saved to or loaded from history. Used for
+   * dirty detection — `input !== savedInput` means there are unsaved changes.
+   * `null` means there is no baseline (a fresh, never-loaded buffer).
+   */
+  savedInput: string | null;
+  /**
+   * When set, a "drill into nested string" action is queued and waiting
+   * for the user to confirm via the dirty-state dialog.
+   */
+  pendingDrillInto: string | null;
 
   setInput(text: string): void;
   parse(text: string): Promise<void>;
-  parseNested(nodeId: number, value: string): Promise<void>;
-  collapseNested(nodeId: number): void;
   toggleCollapse(nodeId: number): void;
   forceExpandArray(nodeId: number): void;
   setSearch(query: string, mode: SearchMode): void;
   clear(): void;
   setLoadedHistoryId(id: number | null): void;
+  setSavedInput(text: string | null): void;
+  setPendingDrillInto(value: string | null): void;
+  /**
+   * True when the buffer has a non-empty input that diverges from the
+   * last saved/loaded snapshot. A brand-new (never-saved) buffer with
+   * any non-whitespace content also counts as dirty.
+   */
+  isDirty(): boolean;
+  /**
+   * Replace the editor with the given JSON-string content, treat it as
+   * a brand-new unsaved record, and parse it. Caller is responsible for
+   * confirming the dirty state first (if any).
+   */
+  drillIntoNested(value: string): Promise<void>;
 }
 
 const initial = {
@@ -43,10 +65,11 @@ const initial = {
   unescapeLayers: 0,
   collapseSet: new Set<number>(),
   forceExpandedSet: new Set<number>(),
-  nestedExpandedById: new Map<number, JsonNode>(),
   searchQuery: "",
   searchMode: "both" as SearchMode,
   loadedHistoryId: null as number | null,
+  savedInput: null as string | null,
+  pendingDrillInto: null as string | null,
 };
 
 export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
@@ -69,7 +92,6 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
         unescapeLayers: tree.unescape_layers,
         collapseSet: new Set(),
         forceExpandedSet: new Set(),
-        nestedExpandedById: new Map(),
       });
     } catch (e) {
       if (e instanceof IpcError && e.app.code === "parse") {
@@ -86,19 +108,6 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
         set({ parseError: { line: 0, col: 0, message } });
       }
     }
-  },
-
-  async parseNested(nodeId, value) {
-    const sub = await jsonApi.parseNested(value);
-    const map = new Map(get().nestedExpandedById);
-    map.set(nodeId, sub.root);
-    set({ nestedExpandedById: map });
-  },
-
-  collapseNested(nodeId) {
-    const map = new Map(get().nestedExpandedById);
-    map.delete(nodeId);
-    set({ nestedExpandedById: map });
   },
 
   toggleCollapse(nodeId) {
@@ -119,10 +128,41 @@ export const useJsonViewerStore = create<JsonViewerState>((set, get) => ({
   },
 
   clear() {
-    set({ ...initial, collapseSet: new Set(), forceExpandedSet: new Set(), nestedExpandedById: new Map() });
+    set({
+      ...initial,
+      collapseSet: new Set(),
+      forceExpandedSet: new Set(),
+    });
   },
 
   setLoadedHistoryId(id) {
     set({ loadedHistoryId: id });
+  },
+
+  setSavedInput(text) {
+    set({ savedInput: text });
+  },
+
+  setPendingDrillInto(value) {
+    set({ pendingDrillInto: value });
+  },
+
+  isDirty() {
+    const { input, savedInput } = get();
+    if (input.trim().length === 0) return false;
+    if (savedInput === null) return true;
+    return input !== savedInput;
+  },
+
+  async drillIntoNested(value) {
+    set({
+      input: value,
+      loadedHistoryId: null,
+      savedInput: null,
+      pendingDrillInto: null,
+      collapseSet: new Set(),
+      forceExpandedSet: new Set(),
+    });
+    await get().parse(value);
   },
 }));

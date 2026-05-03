@@ -52,7 +52,6 @@ const tree: JsonNode = {
 const defaultOpts: FlattenOptions = {
   collapseSet: new Set(),
   arrayCollapseThreshold: 100,
-  nestedExpandedById: new Map(),
 };
 
 describe("flatten", () => {

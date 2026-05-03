@@ -9,9 +9,12 @@ interface TreeNodeProps {
   visible: VisibleNode;
   onToggleCollapse(id: number): void;
   onForceExpandArray(id: number): void;
-  onExpandNested(node: JsonNode): void;
-  onCollapseNested(id: number): void;
-  isNestedExpanded(id: number): boolean;
+  /**
+   * User clicked the ⤷ JSON badge on a string-as-JSON node. Caller is
+   * responsible for any "save current first?" confirmation flow before
+   * actually drilling into the new record.
+   */
+  onDrillIntoNested(stringValue: string): void;
   searchQuery: string;
 }
 
@@ -65,13 +68,12 @@ function renderTypedValue(
         </span>
       );
     case "string": {
-      const v = value.value;
-      const TRUNCATE = 30;
-      const trimmed = v.length > TRUNCATE ? v.slice(0, TRUNCATE) + "…" : v;
+      // Show the full string content. CSS `truncate` on the parent span
+      // handles overflow naturally based on viewport width.
       return (
         <span className="text-[color:var(--json-string)]">
           <span className="text-[color:var(--json-punctuation)]">"</span>
-          {highlight(trimmed, searchQuery)}
+          {highlight(value.value, searchQuery)}
           <span className="text-[color:var(--json-punctuation)]">"</span>
         </span>
       );
@@ -91,9 +93,7 @@ export function TreeNode({
   visible,
   onToggleCollapse,
   onForceExpandArray,
-  onExpandNested,
-  onCollapseNested,
-  isNestedExpanded,
+  onDrillIntoNested,
   searchQuery,
 }: TreeNodeProps) {
   const { t } = useTranslation();
@@ -182,15 +182,12 @@ export function TreeNode({
         <button
           type="button"
           onClick={() => {
-            if (isNestedExpanded(node.id)) onCollapseNested(node.id);
-            else onExpandNested(node);
+            if (node.value.type === "string") {
+              onDrillIntoNested(node.value.value);
+            }
           }}
-          className="ml-2 text-xs text-[color:var(--accent)] hover:underline"
-          title={
-            isNestedExpanded(node.id)
-              ? t("json_viewer.collapse_nested")
-              : t("json_viewer.expand_nested")
-          }
+          className="ml-2 shrink-0 text-xs text-[color:var(--accent)] hover:underline"
+          title={t("json_viewer.open_nested_as_new")}
         >
           ⤷ JSON {node.value.nested_hint.kind_summary}
         </button>

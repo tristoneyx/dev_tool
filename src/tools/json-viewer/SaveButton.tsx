@@ -17,6 +17,10 @@ export function SaveDialogHost({
   const input = useJsonViewerStore((s) => s.input);
   const loadedHistoryId = useJsonViewerStore((s) => s.loadedHistoryId);
   const setLoadedHistoryId = useJsonViewerStore((s) => s.setLoadedHistoryId);
+  const setSavedInput = useJsonViewerStore((s) => s.setSavedInput);
+  const pendingDrillInto = useJsonViewerStore((s) => s.pendingDrillInto);
+  const drillIntoNested = useJsonViewerStore((s) => s.drillIntoNested);
+  const setPendingDrillInto = useJsonViewerStore((s) => s.setPendingDrillInto);
   const save = useHistoryStore((s) => s.save);
   const push = useToastStore((s) => s.push);
 
@@ -42,7 +46,15 @@ export function SaveDialogHost({
     try {
       const item = await save(req);
       setLoadedHistoryId(item.id);
+      setSavedInput(input);
       onClose();
+      // If the user reached this dialog via "Save & open" on the drill
+      // confirmation, drill into the queued nested string now.
+      if (pendingDrillInto !== null) {
+        const queued = pendingDrillInto;
+        setPendingDrillInto(null);
+        await drillIntoNested(queued);
+      }
     } catch (e) {
       push("error", e instanceof Error ? e.message : String(e));
     }

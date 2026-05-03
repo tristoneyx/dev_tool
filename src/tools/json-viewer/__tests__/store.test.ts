@@ -5,7 +5,6 @@ import type { JsonTree } from "../../../types/ipc";
 vi.mock("../api", () => ({
   jsonApi: {
     parse: vi.fn(),
-    parseNested: vi.fn(),
     format: vi.fn(),
     unescape: vi.fn(),
     escape: vi.fn(),
@@ -75,5 +74,52 @@ describe("json viewer store", () => {
 
   it("ARRAY_COLLAPSE_THRESHOLD is 100", () => {
     expect(ARRAY_COLLAPSE_THRESHOLD).toBe(100);
+  });
+
+  describe("dirty detection + drill", () => {
+    it("isDirty is false when input is empty", () => {
+      expect(useJsonViewerStore.getState().isDirty()).toBe(false);
+    });
+
+    it("isDirty is true for fresh non-empty input with no savedInput baseline", () => {
+      useJsonViewerStore.getState().setInput("{}");
+      expect(useJsonViewerStore.getState().isDirty()).toBe(true);
+    });
+
+    it("isDirty is false when input matches savedInput baseline", () => {
+      useJsonViewerStore.getState().setInput("{}");
+      useJsonViewerStore.getState().setSavedInput("{}");
+      expect(useJsonViewerStore.getState().isDirty()).toBe(false);
+    });
+
+    it("isDirty becomes true again after editing a saved record", () => {
+      useJsonViewerStore.getState().setInput("{}");
+      useJsonViewerStore.getState().setSavedInput("{}");
+      useJsonViewerStore.getState().setInput("{\"a\":1}");
+      expect(useJsonViewerStore.getState().isDirty()).toBe(true);
+    });
+
+    it("drillIntoNested replaces input and resets the saved baseline", async () => {
+      (jsonApi.parse as ReturnType<typeof vi.fn>).mockResolvedValue(tree);
+      // simulate a previously loaded record
+      useJsonViewerStore.getState().setInput("{}");
+      useJsonViewerStore.getState().setSavedInput("{}");
+      useJsonViewerStore.getState().setLoadedHistoryId(7);
+      // drill into a new nested string
+      await useJsonViewerStore.getState().drillIntoNested("{\"x\":1}");
+      const s = useJsonViewerStore.getState();
+      expect(s.input).toBe("{\"x\":1}");
+      expect(s.loadedHistoryId).toBeNull();
+      expect(s.savedInput).toBeNull();
+      expect(s.pendingDrillInto).toBeNull();
+      expect(s.isDirty()).toBe(true);
+    });
+
+    it("setPendingDrillInto stores and clears the queued value", () => {
+      useJsonViewerStore.getState().setPendingDrillInto("{\"a\":1}");
+      expect(useJsonViewerStore.getState().pendingDrillInto).toBe("{\"a\":1}");
+      useJsonViewerStore.getState().setPendingDrillInto(null);
+      expect(useJsonViewerStore.getState().pendingDrillInto).toBeNull();
+    });
   });
 });

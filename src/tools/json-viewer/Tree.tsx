@@ -5,6 +5,14 @@ import { useJsonViewerStore, ARRAY_COLLAPSE_THRESHOLD } from "./store";
 import { flatten, type VisibleNode } from "./flatten";
 import { TreeNode } from "./TreeNode";
 
+interface TreeProps {
+  /**
+   * Called when user clicks the ⤷ JSON badge on a string-as-JSON node.
+   * Parent decides whether to prompt for save before drilling.
+   */
+  onRequestDrill(stringValue: string): void;
+}
+
 const ROW_HEIGHT = 28;
 
 /** Measure the bounding box of a parent so react-window gets explicit dims. */
@@ -29,19 +37,16 @@ function useElementSize(): [
   return [ref, size];
 }
 
-export function Tree() {
+export function Tree({ onRequestDrill }: TreeProps) {
   const { t } = useTranslation();
   const tree = useJsonViewerStore((s) => s.tree);
   const collapseSet = useJsonViewerStore((s) => s.collapseSet);
   const forceExpandedSet = useJsonViewerStore((s) => s.forceExpandedSet);
-  const nestedExpandedById = useJsonViewerStore((s) => s.nestedExpandedById);
   const searchQuery = useJsonViewerStore((s) => s.searchQuery);
   const searchMode = useJsonViewerStore((s) => s.searchMode);
 
   const toggleCollapse = useJsonViewerStore((s) => s.toggleCollapse);
   const forceExpand = useJsonViewerStore((s) => s.forceExpandArray);
-  const parseNested = useJsonViewerStore((s) => s.parseNested);
-  const collapseNested = useJsonViewerStore((s) => s.collapseNested);
 
   const listRef = useRef<VariableSizeList | null>(null);
   const [hostRef, size] = useElementSize();
@@ -51,7 +56,6 @@ export function Tree() {
     const all = flatten(tree.root, {
       collapseSet,
       forceExpandedSet,
-      nestedExpandedById,
       arrayCollapseThreshold: ARRAY_COLLAPSE_THRESHOLD,
     });
     if (!searchQuery) return all;
@@ -60,7 +64,6 @@ export function Tree() {
     tree,
     collapseSet,
     forceExpandedSet,
-    nestedExpandedById,
     searchQuery,
     searchMode,
   ]);
@@ -93,13 +96,7 @@ export function Tree() {
             forceExpand(id);
             listRef.current?.resetAfterIndex(0);
           }}
-          onExpandNested={(node) => {
-            if (node.value.type === "string") {
-              void parseNested(node.id, node.value.value);
-            }
-          }}
-          onCollapseNested={collapseNested}
-          isNestedExpanded={(id) => nestedExpandedById.has(id)}
+          onDrillIntoNested={onRequestDrill}
           searchQuery={searchQuery}
         />
       </div>
