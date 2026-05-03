@@ -91,3 +91,44 @@ export interface JsonTree {
   stats: TreeStats;
   unescape_layers: number;
 }
+
+// ----- JSON Diff types (mirror src-tauri/src/domain/json_diff.rs) -----
+
+export type DiffKey =
+  | { kind: "root" }
+  | { kind: "object"; name: string }
+  | { kind: "array"; index: number };
+
+export type DiffValue =
+  | { type: "null" }
+  | { type: "bool"; value: boolean }
+  | { type: "number"; raw: string }
+  | { type: "string"; value: string }
+  | { type: "object"; key_count: number }
+  | { type: "array"; item_count: number };
+
+export type DiffStatus =
+  | { status: "equal"; value: DiffValue }
+  | { status: "added"; right: DiffValue }
+  | { status: "removed"; left: DiffValue }
+  | { status: "modified"; left: DiffValue; right: DiffValue }
+  | { status: "type_changed"; left: DiffValue; right: DiffValue };
+
+// Status fields are flattened onto DiffNode (matches #[serde(flatten)] in Rust).
+export type DiffNode = {
+  id: number;
+  key: DiffKey;
+  path: string;
+  children: DiffNode[];
+  has_difference: boolean;
+} & DiffStatus;
+
+export interface DiffStats {
+  total_nodes: number;
+  differences: number;
+}
+
+export interface DiffTree {
+  root: DiffNode;
+  stats: DiffStats;
+}
