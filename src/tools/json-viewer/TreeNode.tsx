@@ -49,8 +49,6 @@ function renderTypedValue(
   value: NodeValue,
   searchQuery: string,
   isLongStringCollapsed: boolean,
-  onToggleStringExpand: () => void,
-  t: (key: string, opts?: Record<string, unknown>) => string,
 ): React.ReactNode {
   switch (value.type) {
     case "null":
@@ -80,16 +78,6 @@ function renderTypedValue(
             {highlight(preview, searchQuery)}
             <span className="text-[color:var(--text-muted)]">…</span>
             <span className="text-[color:var(--json-punctuation)]">"</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStringExpand();
-              }}
-              className="ml-2 text-xs text-[color:var(--accent)] hover:underline"
-            >
-              {t("json_viewer.expand_string", { n: value.value.length })}
-            </button>
           </span>
         );
       }
@@ -159,13 +147,7 @@ export function TreeNode({
           </span>
         );
       }
-      return renderTypedValue(
-        node.value,
-        searchQuery,
-        false,
-        () => {},
-        t,
-      );
+      return renderTypedValue(node.value, searchQuery, false);
     }
     if (node.value.type === "object" || node.value.type === "array") {
       return (
@@ -174,13 +156,7 @@ export function TreeNode({
         </span>
       );
     }
-    return renderTypedValue(
-      node.value,
-      searchQuery,
-      isLongStringCollapsed,
-      () => onToggleStringExpand(node.id),
-      t,
-    );
+    return renderTypedValue(node.value, searchQuery, isLongStringCollapsed);
   };
 
   const label = keyLabel(node);
@@ -262,7 +238,20 @@ export function TreeNode({
         </span>
       )}
 
-      <span className="truncate">{renderValueNode()}</span>
+      <span className="truncate min-w-0">{renderValueNode()}</span>
+
+      {isLongStringCollapsed && node.value.type === "string" && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleStringExpand(node.id);
+          }}
+          className="ml-2 shrink-0 text-xs text-[color:var(--accent)] hover:underline"
+        >
+          {t("json_viewer.expand_string", { n: node.value.value.length })}
+        </button>
+      )}
 
       {arrayExpandAll && node.value.type === "array" && (
         <button

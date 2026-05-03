@@ -19,8 +19,12 @@ interface TreeProps {
 }
 
 const ROW_HEIGHT = 28;
-/** Approximate width of one monospace character at the row's font-size. */
-const APPROX_CHAR_PX = 7.2;
+/**
+ * Conservative width estimate for one monospace character at text-sm in
+ * Menlo/Monaco. Browsers actually render glyphs at ~8.4px so we round up
+ * with a safety margin to avoid ever underestimating wrap height.
+ */
+const APPROX_CHAR_PX = 9;
 /** Pixel height of one wrapped line for an expanded string. */
 const STRING_LINE_HEIGHT = 20;
 /** Vertical padding (top + bottom) on a wrapped string row. */
@@ -32,6 +36,8 @@ const STRING_ROW_PADDING_PX = 10;
 const STRING_AUTO_COLLAPSE_LINES = 30;
 /** Hard cap on row height even when the user has manually expanded. */
 const MAX_STRING_ROW_HEIGHT_PX = 1200;
+/** Extra buffer line added to every estimate as an overflow safety net. */
+const HEIGHT_SAFETY_LINES = 1;
 
 interface StringDisplay {
   isLong: boolean;
@@ -51,13 +57,17 @@ function stringDisplayFor(
   if (text.length === 0) {
     return { isLong: false, isCollapsed: false, expandedHeightPx: ROW_HEIGHT };
   }
-  // Indent + chevron column form the wrap padding for block layout.
+  // Indent + chevron column form the wrap padding for block layout. Add a
+  // generous right-side reserve for scrollbar / cell padding so we never
+  // overestimate available width.
   const padPx = v.depth * 16 + 8 + 16;
-  const availPx = Math.max(80, widthPx - padPx - 16); // -16 for safety
+  const availPx = Math.max(80, widthPx - padPx - 32);
   const charsPerLine = Math.max(20, Math.floor(availPx / APPROX_CHAR_PX));
   // +2 for the surrounding quotes always rendered around string values.
-  const lines = Math.max(1, Math.ceil((text.length + 2) / charsPerLine));
-  const isLong = lines > STRING_AUTO_COLLAPSE_LINES;
+  const rawLines = Math.max(1, Math.ceil((text.length + 2) / charsPerLine));
+  // Extra safety line so the slot is always >= rendered DOM height.
+  const lines = rawLines + HEIGHT_SAFETY_LINES;
+  const isLong = rawLines > STRING_AUTO_COLLAPSE_LINES;
   const isCollapsed = isLong && !expandedStringSet.has(v.node.id);
   const expandedHeightPx = Math.min(
     lines * STRING_LINE_HEIGHT + STRING_ROW_PADDING_PX,
@@ -175,7 +185,7 @@ export function Tree({ onRequestDrill }: TreeProps) {
     const v = visible[index];
     if (v.closer) {
       return (
-        <div style={style}>
+        <div style={{ ...style, overflow: "hidden" }}>
           <div
             className="text-sm font-mono leading-7 text-[color:var(--json-punctuation)] cursor-default"
             style={{ height: ROW_HEIGHT, paddingLeft: `${v.depth * 16 + 8 + 16}px` }}
@@ -187,7 +197,7 @@ export function Tree({ onRequestDrill }: TreeProps) {
     }
     const display = stringDisplays[index];
     return (
-      <div style={style}>
+      <div style={{ ...style, overflow: "hidden" }}>
         <TreeNode
           visible={v}
           stringIsLong={display?.isLong ?? false}
