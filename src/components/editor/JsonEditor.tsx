@@ -4,17 +4,26 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
-import { parseLinter } from "./lint";
-import type { ParseDiagnostic } from "./store";
+import { parseLinter } from "../../tools/json-viewer/lint";
+import type { ParseDiagnostic } from "../../tools/json-viewer/store";
 
-interface EditorProps {
+interface JsonEditorProps {
   value: string;
   onChange(text: string): void;
   diagnostic: ParseDiagnostic | null;
-  placeholderKey?: string;
+  /**
+   * i18n key used for the host's aria-label (so screen readers can announce
+   * the placeholder text). Defaults to the JSON Viewer's editor placeholder.
+   */
+  ariaLabelKey?: string;
 }
 
-export function Editor({ value, onChange, diagnostic }: EditorProps) {
+export function JsonEditor({
+  value,
+  onChange,
+  diagnostic,
+  ariaLabelKey = "json_viewer.editor_placeholder",
+}: JsonEditorProps) {
   const { t } = useTranslation();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -64,10 +73,7 @@ export function Editor({ value, onChange, diagnostic }: EditorProps) {
     viewRef.current = view;
 
     // Surface a placeholder via aria so screen readers know where to type.
-    hostRef.current.setAttribute(
-      "aria-label",
-      t("json_viewer.editor_placeholder"),
-    );
+    hostRef.current.setAttribute("aria-label", t(ariaLabelKey));
 
     return () => {
       view.destroy();

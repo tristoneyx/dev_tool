@@ -17,6 +17,10 @@
   --json-bool: #8a4baf;
   --json-null: #8a8278;
   --json-punctuation: #6f6a62;
+  --diff-bg-added: rgba(92, 138, 90, 0.10);
+  --diff-bg-removed: rgba(199, 84, 80, 0.10);
+  --diff-bg-modified: rgba(212, 163, 71, 0.12);
+  --diff-bg-type-changed: rgba(74, 123, 157, 0.12);
 }
 
 :root.dark {
@@ -38,6 +42,10 @@
   --json-bool: #c08bdc;
   --json-null: #9a948a;
   --json-punctuation: #9a948a;
+  --diff-bg-added: rgba(125, 169, 122, 0.18);
+  --diff-bg-removed: rgba(217, 116, 112, 0.18);
+  --diff-bg-modified: rgba(226, 187, 94, 0.18);
+  --diff-bg-type-changed: rgba(109, 164, 198, 0.18);
 }
 
 body {

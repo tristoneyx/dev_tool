@@ -66,6 +66,25 @@
     "format_failed": "Format failed: invalid JSON",
     "save_default_title": "JSON snippet"
   },
+  "json_diff": {
+    "left_label": "LEFT",
+    "right_label": "RIGHT",
+    "left_placeholder": "Paste the LEFT JSON here…",
+    "right_placeholder": "Paste the RIGHT JSON here…",
+    "tree_empty": "Click Compare to see the diff.",
+    "compare": "Compare",
+    "swap": "Swap",
+    "clear": "Clear",
+    "save": "Save…",
+    "show_only_diffs": "Show only differences",
+    "search_placeholder": "Search by path…",
+    "stats_no_diff": "Both sides are equivalent.",
+    "stats_diffs": "{{n}} difference(s) across {{total}} nodes",
+    "preview_object_keys": "{{ {{n}} keys }}",
+    "preview_array_items": "[ {{n}} items ]",
+    "compare_failed": "Compare failed: {{message}}",
+    "save_default_title": "Diff snapshot"
+  },
   "common": {
     "just_now": "just now",
     "ago_minute": "{{n}}m ago",

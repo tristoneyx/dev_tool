@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Editor } from "./Editor";
+import { JsonEditor } from "../../components/editor/JsonEditor";
 import { Tree } from "./Tree";
 import { SearchBar } from "./SearchBar";
 import { Toolbar } from "./Toolbar";
@@ -75,7 +75,7 @@ export function JsonViewer() {
       )}
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 min-w-0 border-r border-[color:var(--border)] overflow-hidden">
-          <Editor
+          <JsonEditor
             value={input}
             onChange={setInput}
             diagnostic={parseError}
