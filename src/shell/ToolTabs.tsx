@@ -2,13 +2,10 @@ import { useTranslation } from "react-i18next";
 import { useActiveToolStore } from "./activeToolStore";
 import type { ToolKind } from "../types/ipc";
 
-const tabs: ToolKind[] = [
-  "json_viewer",
-  "json_diff",
-  "escape",
-  "base64",
-  "url_parser",
-];
+// "escape" was removed from the UI in May 2026 — the ToolKind type keeps
+// the variant so legacy history items still deserialize, but the tab is
+// no longer surfaced.
+const tabs: ToolKind[] = ["json_viewer", "json_diff", "base64", "url_parser"];
 
 export function ToolTabs() {
   const { t } = useTranslation();

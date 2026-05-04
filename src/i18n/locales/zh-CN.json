@@ -6,7 +6,6 @@
   "tools": {
     "json_viewer": "JSON 可视化",
     "json_diff": "JSON 对比",
-    "escape": "转义/反转义",
     "base64": "Base64",
     "url_parser": "URL 解析"
   },
@@ -84,18 +83,6 @@
     "preview_array_items": "[ {{n}} 项 ]",
     "compare_failed": "对比失败：{{message}}",
     "save_default_title": "Diff 片段"
-  },
-  "escape": {
-    "direction_escape": "转义",
-    "direction_unescape": "反转义",
-    "swap_direction_tooltip": "点击切换方向（若输入输出都有内容则同时交换两侧文本）",
-    "clear": "清空",
-    "save": "保存…",
-    "input_label": "输入",
-    "output_label": "输出",
-    "input_placeholder": "在此粘贴文本…",
-    "copy": "复制",
-    "save_default_title": "转义片段"
   },
   "base64": {
     "direction_encode": "编码",

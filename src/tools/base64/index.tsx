@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useBase64Store } from "./store";
 import { copyToClipboard } from "../../lib/clipboard";
 import { useToastStore } from "../../shell/toastStore";
+import { noSmartTyping } from "../../lib/inputAttrs";
 import { SaveDialogHost } from "./SaveDialogHost";
 
 export function Base64() {
@@ -82,6 +83,7 @@ export function Base64() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={t("base64.input_placeholder")}
+            {...noSmartTyping}
             className="flex-1 p-3 font-mono text-sm bg-[color:var(--bg-base)] outline-none resize-none"
           />
         </div>

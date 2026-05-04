@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useJsonDiffStore } from "./store";
+import { noSmartTyping } from "../../lib/inputAttrs";
 
 export function DiffSearchBar(): JSX.Element {
   const { t } = useTranslation();
@@ -15,6 +16,7 @@ export function DiffSearchBar(): JSX.Element {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder={t("json_diff.search_placeholder")}
+        {...noSmartTyping}
         className="flex-1 px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
       />
       <label className="flex items-center gap-1 text-sm text-[color:var(--text-muted)]">

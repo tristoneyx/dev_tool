@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useHistoryStore } from "./store";
 import { formatBytes, formatRelativeTime } from "../lib/format";
+import { noSmartTyping } from "../lib/inputAttrs";
 import type { HistoryContent, HistoryItem, ToolKind } from "../types/ipc";
 
 interface HistoryDrawerProps {
@@ -45,6 +46,7 @@ export function HistoryDrawer({ open, tool, onLoad }: HistoryDrawerProps) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t("history_drawer.search_placeholder")}
+          {...noSmartTyping}
           className="w-full px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
         />
       </div>

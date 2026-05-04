@@ -6,21 +6,21 @@ import { HistoryDrawer } from "./history/HistoryDrawer";
 import { useActiveToolStore } from "./shell/activeToolStore";
 import { JsonViewer } from "./tools/json-viewer";
 import { JsonDiff } from "./tools/json-diff";
-import { Escape } from "./tools/escape";
 import { Base64 } from "./tools/base64";
 import { UrlParser } from "./tools/url-parser";
 import type { HistoryItem, ToolKind } from "./types/ipc";
 import { useToastStore } from "./shell/toastStore";
 import { useJsonViewerStore } from "./tools/json-viewer/store";
 import { useJsonDiffStore } from "./tools/json-diff/store";
-import { useEscapeStore } from "./tools/escape/store";
 import { useBase64Store } from "./tools/base64/store";
 import { useUrlParserStore } from "./tools/url-parser/store";
 
-const tools: Record<ToolKind, () => ReactElement> = {
+// `ToolKind` still includes the deprecated `"escape"` value so old history
+// items keep deserializing — the partial here lets us drop the UI without
+// breaking the type.
+const tools: Partial<Record<ToolKind, () => ReactElement>> = {
   json_viewer: JsonViewer,
   json_diff: JsonDiff,
-  escape: Escape,
   base64: Base64,
   url_parser: UrlParser,
 };
@@ -31,7 +31,7 @@ export default function App() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const push = useToastStore((s) => s.push);
 
-  const ActiveTool = tools[active];
+  const ActiveTool = tools[active] ?? JsonViewer;
 
   function handleLoad(item: HistoryItem) {
     if (item.content.tool === "json_viewer") {
@@ -48,14 +48,6 @@ export default function App() {
       useJsonDiffStore.getState().setLoadedHistoryId(item.id);
       useJsonDiffStore.getState().setSaved(item.content.left, item.content.right);
       void useJsonDiffStore.getState().compare();
-      push("success", t("common.loaded_history_toast", { title: item.title }));
-      return;
-    }
-    if (item.content.tool === "escape") {
-      useEscapeStore.getState().setInput(item.content.input);
-      useEscapeStore.getState().setDirection(item.content.direction);
-      useEscapeStore.getState().setLoadedHistoryId(item.id);
-      useEscapeStore.getState().setSaved(item.content.input, item.content.direction);
       push("success", t("common.loaded_history_toast", { title: item.title }));
       return;
     }
@@ -77,6 +69,8 @@ export default function App() {
       push("success", t("common.loaded_history_toast", { title: item.title }));
       return;
     }
+    // `escape` history items (and any future deprecated tool) fall through
+    // here — the UI no longer has a place to load them into.
     push("info", t("common.loaded_history_toast", { title: item.title }));
   }
 

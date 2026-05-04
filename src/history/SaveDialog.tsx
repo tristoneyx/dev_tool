@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { noSmartTyping } from "../lib/inputAttrs";
 
 export type SaveResult =
   | { mode: "new"; title: string }
@@ -34,6 +35,7 @@ export function SaveDialog({
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          {...noSmartTyping}
           className="w-full px-2 py-1 mb-4 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
         />
         <div className="flex justify-end gap-2">

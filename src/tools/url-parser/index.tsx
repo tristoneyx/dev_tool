@@ -4,6 +4,7 @@ import { useUrlParserStore } from "./store";
 import { QueryTable } from "./QueryTable";
 import { SaveDialogHost } from "./SaveDialogHost";
 import { debounce } from "../../lib/debounce";
+import { noSmartTyping } from "../../lib/inputAttrs";
 import type { UrlParts } from "../../types/ipc";
 
 const DEBOUNCE_MS = 200;
@@ -64,6 +65,7 @@ export function UrlParser() {
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder={t("url_parser.url_placeholder")}
+          {...noSmartTyping}
           className="flex-1 px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] font-mono"
         />
         <button
@@ -173,6 +175,7 @@ function Field({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        {...noSmartTyping}
         className="px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] font-mono"
       />
     </label>

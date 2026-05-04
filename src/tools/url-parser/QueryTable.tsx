@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { QueryParam } from "../../types/ipc";
+import { noSmartTyping } from "../../lib/inputAttrs";
 
 interface QueryTableProps {
   params: QueryParam[];
@@ -68,11 +69,13 @@ function Row({
       <input
         value={param.key}
         onChange={(e) => onChange({ key: e.target.value })}
+        {...noSmartTyping}
         className="px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] font-mono"
       />
       <input
         value={param.value}
         onChange={(e) => onChange({ value: e.target.value })}
+        {...noSmartTyping}
         className="px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] font-mono"
       />
       <button

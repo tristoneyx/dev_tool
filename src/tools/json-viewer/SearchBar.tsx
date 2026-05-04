@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useJsonViewerStore, type SearchMode } from "./store";
+import { noSmartTyping } from "../../lib/inputAttrs";
 
 const modes: SearchMode[] = ["both", "key", "value"];
 
@@ -13,6 +14,7 @@ export function SearchBar() {
         value={searchQuery}
         onChange={(e) => setSearch(e.target.value, searchMode)}
         placeholder={t("json_viewer.search_placeholder")}
+        {...noSmartTyping}
         className="flex-1 px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
       />
       <select
