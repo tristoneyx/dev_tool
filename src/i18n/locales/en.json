@@ -85,6 +85,17 @@
     "compare_failed": "Compare failed: {{message}}",
     "save_default_title": "Diff snapshot"
   },
+  "escape": {
+    "direction_escape": "Escape",
+    "direction_unescape": "Unescape",
+    "clear": "Clear",
+    "save": "Save…",
+    "input_label": "INPUT",
+    "output_label": "OUTPUT",
+    "input_placeholder": "Paste text here…",
+    "copy": "Copy",
+    "save_default_title": "Escape snippet"
+  },
   "common": {
     "just_now": "just now",
     "ago_minute": "{{n}}m ago",

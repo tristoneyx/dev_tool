@@ -85,6 +85,17 @@
     "compare_failed": "对比失败：{{message}}",
     "save_default_title": "Diff 片段"
   },
+  "escape": {
+    "direction_escape": "转义",
+    "direction_unescape": "反转义",
+    "clear": "清空",
+    "save": "保存…",
+    "input_label": "输入",
+    "output_label": "输出",
+    "input_placeholder": "在此粘贴文本…",
+    "copy": "复制",
+    "save_default_title": "转义片段"
+  },
   "common": {
     "just_now": "刚刚",
     "ago_minute": "{{n}} 分钟前",
