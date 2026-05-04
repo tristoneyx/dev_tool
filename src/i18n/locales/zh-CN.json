@@ -85,6 +85,46 @@
     "compare_failed": "对比失败：{{message}}",
     "save_default_title": "Diff 片段"
   },
+  "escape": {
+    "direction_escape": "转义",
+    "direction_unescape": "反转义",
+    "clear": "清空",
+    "save": "保存…",
+    "input_label": "输入",
+    "output_label": "输出",
+    "input_placeholder": "在此粘贴文本…",
+    "copy": "复制",
+    "save_default_title": "转义片段"
+  },
+  "base64": {
+    "direction_encode": "编码",
+    "direction_decode": "解码",
+    "url_safe": "URL 安全模式",
+    "clear": "清空",
+    "save": "保存…",
+    "input_label": "输入",
+    "output_label": "输出",
+    "input_placeholder": "在此粘贴文本…",
+    "copy": "复制",
+    "save_default_title": "Base64 片段"
+  },
+  "url_parser": {
+    "url_placeholder": "https://example.com/path?q=value#frag",
+    "clear": "清空",
+    "save": "保存…",
+    "parts_card_title": "URL 组成",
+    "scheme": "协议",
+    "host": "主机",
+    "port": "端口",
+    "path": "路径",
+    "fragment": "片段",
+    "query_table_title": "查询参数",
+    "key": "键",
+    "value": "值",
+    "add_row": "+ 添加行",
+    "remove_row": "删除",
+    "save_default_title": "URL 片段"
+  },
   "common": {
     "just_now": "刚刚",
     "ago_minute": "{{n}} 分钟前",

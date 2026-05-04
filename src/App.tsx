@@ -13,6 +13,9 @@ import type { HistoryItem, ToolKind } from "./types/ipc";
 import { useToastStore } from "./shell/toastStore";
 import { useJsonViewerStore } from "./tools/json-viewer/store";
 import { useJsonDiffStore } from "./tools/json-diff/store";
+import { useEscapeStore } from "./tools/escape/store";
+import { useBase64Store } from "./tools/base64/store";
+import { useUrlParserStore } from "./tools/url-parser/store";
 
 const tools: Record<ToolKind, () => ReactElement> = {
   json_viewer: JsonViewer,
@@ -45,6 +48,32 @@ export default function App() {
       useJsonDiffStore.getState().setLoadedHistoryId(item.id);
       useJsonDiffStore.getState().setSaved(item.content.left, item.content.right);
       void useJsonDiffStore.getState().compare();
+      push("success", t("common.loaded_history_toast", { title: item.title }));
+      return;
+    }
+    if (item.content.tool === "escape") {
+      useEscapeStore.getState().setInput(item.content.input);
+      useEscapeStore.getState().setDirection(item.content.direction);
+      useEscapeStore.getState().setLoadedHistoryId(item.id);
+      useEscapeStore.getState().setSaved(item.content.input, item.content.direction);
+      push("success", t("common.loaded_history_toast", { title: item.title }));
+      return;
+    }
+    if (item.content.tool === "base64") {
+      useBase64Store.getState().setInput(item.content.input);
+      useBase64Store.getState().setDirection(item.content.direction);
+      useBase64Store.getState().setUrlSafe(item.content.url_safe);
+      useBase64Store.getState().setLoadedHistoryId(item.id);
+      useBase64Store
+        .getState()
+        .setSaved(item.content.input, item.content.direction, item.content.url_safe);
+      push("success", t("common.loaded_history_toast", { title: item.title }));
+      return;
+    }
+    if (item.content.tool === "url_parser") {
+      useUrlParserStore.getState().setUrl(item.content.url);
+      useUrlParserStore.getState().setLoadedHistoryId(item.id);
+      useUrlParserStore.getState().setSaved(item.content.url);
       push("success", t("common.loaded_history_toast", { title: item.title }));
       return;
     }

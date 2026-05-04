@@ -132,3 +132,19 @@ export interface DiffTree {
   root: DiffNode;
   stats: DiffStats;
 }
+
+// ----- URL Parser types (mirror src-tauri/src/domain/url_parts.rs) -----
+
+export interface QueryParam {
+  key: string;
+  value: string;
+}
+
+export interface UrlParts {
+  scheme: string;
+  host: string;
+  port: number | null;
+  path: string;
+  query: QueryParam[];
+  fragment: string | null;
+}

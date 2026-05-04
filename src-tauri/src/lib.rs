@@ -31,6 +31,10 @@ pub fn run() {
             commands::json::json_unescape,
             commands::json::json_escape,
             commands::diff::json_diff,
+            commands::codec::base64_encode,
+            commands::codec::base64_decode,
+            commands::codec::url_parse,
+            commands::codec::url_build,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
