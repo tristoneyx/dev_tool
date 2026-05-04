@@ -86,4 +86,64 @@ describe("flattenDiff", () => {
     expect(list[2].node.id).toBe(0);
     expect(list[2].closer).toBe("}");
   });
+
+  it("emits closer for an added-container subtree (uses node.right.type)", () => {
+    // A whole-subtree-added scenario: container present only on the right.
+    const addedTree: DiffNode = {
+      id: 0,
+      key: { kind: "root" },
+      path: "",
+      status: "added",
+      right: { type: "object", key_count: 1 },
+      has_difference: true,
+      children: [
+        {
+          id: 1,
+          key: { kind: "object", name: "x" },
+          path: "x",
+          status: "added",
+          right: { type: "number", raw: "1" },
+          has_difference: true,
+          children: [],
+        },
+      ],
+    };
+    const list = flattenDiff(addedTree, {
+      collapseSet: new Set(),
+      showOnlyDiffs: false,
+      searchQuery: "",
+    });
+    expect(list).toHaveLength(3);
+    expect(list[2].closer).toBe("}");
+    expect(list[2].node.id).toBe(0);
+  });
+
+  it("emits closer for a removed-array-container subtree (uses node.left.type)", () => {
+    const removedTree: DiffNode = {
+      id: 0,
+      key: { kind: "root" },
+      path: "",
+      status: "removed",
+      left: { type: "array", item_count: 1 },
+      has_difference: true,
+      children: [
+        {
+          id: 1,
+          key: { kind: "array", index: 0 },
+          path: "[0]",
+          status: "removed",
+          left: { type: "number", raw: "9" },
+          has_difference: true,
+          children: [],
+        },
+      ],
+    };
+    const list = flattenDiff(removedTree, {
+      collapseSet: new Set(),
+      showOnlyDiffs: false,
+      searchQuery: "",
+    });
+    expect(list).toHaveLength(3);
+    expect(list[2].closer).toBe("]");
+  });
 });
