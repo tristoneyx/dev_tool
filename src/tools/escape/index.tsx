@@ -4,7 +4,6 @@ import { useEscapeStore } from "./store";
 import { copyToClipboard } from "../../lib/clipboard";
 import { useToastStore } from "../../shell/toastStore";
 import { SaveDialogHost } from "./SaveDialogHost";
-import type { EscapeDirection } from "../../types/ipc";
 
 export function Escape() {
   const { t } = useTranslation();
@@ -24,18 +23,31 @@ export function Escape() {
 
   const [saveOpen, setSaveOpen] = useState(false);
 
+  const swapDirection = () => {
+    const next = direction === "escape" ? "unescape" : "escape";
+    // If we have a non-error output, treat it as the new input — the previous
+    // direction's output becomes the next direction's input. Otherwise just
+    // flip the direction with the current input.
+    if (output.length > 0 && !error) {
+      setInput(output);
+    }
+    setDirection(next);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--border)] bg-[color:var(--bg-panel)]">
-        <select
-          value={direction}
-          onChange={(e) => setDirection(e.target.value as EscapeDirection)}
-          className="px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
+        <button
+          type="button"
+          onClick={swapDirection}
+          title={t("escape.swap_direction_tooltip")}
+          className="px-3 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] hover:bg-[color:var(--bg-panel)] font-mono"
         >
-          <option value="escape">{t("escape.direction_escape")}</option>
-          <option value="unescape">{t("escape.direction_unescape")}</option>
-        </select>
+          {direction === "escape"
+            ? `${t("escape.direction_escape")} ⇄ ${t("escape.direction_unescape")}`
+            : `${t("escape.direction_unescape")} ⇄ ${t("escape.direction_escape")}`}
+        </button>
         <button
           type="button"
           onClick={clear}

@@ -88,6 +88,7 @@
   "escape": {
     "direction_escape": "Escape",
     "direction_unescape": "Unescape",
+    "swap_direction_tooltip": "Click to flip direction (and swap input/output if both are filled)",
     "clear": "Clear",
     "save": "Save…",
     "input_label": "INPUT",
@@ -99,6 +100,7 @@
   "base64": {
     "direction_encode": "Encode",
     "direction_decode": "Decode",
+    "swap_direction_tooltip": "Click to flip direction (and swap input/output if both are filled)",
     "url_safe": "URL-safe",
     "clear": "Clear",
     "save": "Save…",

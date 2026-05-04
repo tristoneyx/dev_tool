@@ -22,21 +22,24 @@ export function UrlParser() {
   const rebuild = useUrlParserStore((s) => s.rebuild);
   const clear = useUrlParserStore((s) => s.clear);
 
-  // Debounced reparse on URL changes (skip if mutating == we just set it from rebuild).
+  // Debounced reparse — only fires when the user's most recent edit was in
+  // the URL field. Cross-side programmatic writes (rebuild → url) leave
+  // source === null so this no-ops, preventing reparse-rebuild ping-pong.
   const debouncedReparse = useMemo(
     () =>
       debounce(() => {
-        if (useUrlParserStore.getState().mutating) return;
+        if (useUrlParserStore.getState().source !== "url") return;
         void reparse();
       }, DEBOUNCE_MS),
     [reparse],
   );
 
-  // Debounced rebuild on parts changes (skip if mutating == we just set it from reparse).
+  // Debounced rebuild — only fires when the user's most recent edit was in
+  // a parts field or the query table.
   const debouncedRebuild = useMemo(
     () =>
       debounce(() => {
-        if (useUrlParserStore.getState().mutating) return;
+        if (useUrlParserStore.getState().source !== "parts") return;
         void rebuild();
       }, DEBOUNCE_MS),
     [rebuild],

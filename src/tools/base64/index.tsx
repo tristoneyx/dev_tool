@@ -4,7 +4,6 @@ import { useBase64Store } from "./store";
 import { copyToClipboard } from "../../lib/clipboard";
 import { useToastStore } from "../../shell/toastStore";
 import { SaveDialogHost } from "./SaveDialogHost";
-import type { CodecDirection } from "../../types/ipc";
 
 export function Base64() {
   const { t } = useTranslation();
@@ -26,18 +25,28 @@ export function Base64() {
 
   const [saveOpen, setSaveOpen] = useState(false);
 
+  const swapDirection = () => {
+    const next = direction === "encode" ? "decode" : "encode";
+    if (output.length > 0 && !error) {
+      setInput(output);
+    }
+    setDirection(next);
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-[color:var(--border)] bg-[color:var(--bg-panel)]">
-        <select
-          value={direction}
-          onChange={(e) => setDirection(e.target.value as CodecDirection)}
-          className="px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)]"
+        <button
+          type="button"
+          onClick={swapDirection}
+          title={t("base64.swap_direction_tooltip")}
+          className="px-3 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] hover:bg-[color:var(--bg-panel)] font-mono"
         >
-          <option value="encode">{t("base64.direction_encode")}</option>
-          <option value="decode">{t("base64.direction_decode")}</option>
-        </select>
+          {direction === "encode"
+            ? `${t("base64.direction_encode")} ⇄ ${t("base64.direction_decode")}`
+            : `${t("base64.direction_decode")} ⇄ ${t("base64.direction_encode")}`}
+        </button>
         <label className="flex items-center gap-1.5 px-2 py-1 text-sm rounded border border-[color:var(--border)] bg-[color:var(--bg-base)] cursor-pointer">
           <input
             type="checkbox"

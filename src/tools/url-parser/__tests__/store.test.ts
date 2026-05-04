@@ -32,7 +32,7 @@ describe("url-parser store", () => {
     expect(s.error).toBeNull();
     expect(s.loadedHistoryId).toBeNull();
     expect(s.savedUrl).toBeNull();
-    expect(s.mutating).toBe(false);
+    expect(s.source).toBeNull();
   });
 
   it("setUrl + reparse populates parts on success", async () => {
@@ -135,7 +135,7 @@ describe("url-parser store", () => {
       error: "boom",
       loadedHistoryId: 5,
       savedUrl: "x",
-      mutating: true,
+      source: "url",
     });
     useUrlParserStore.getState().clear();
     const s = useUrlParserStore.getState();
@@ -144,7 +144,35 @@ describe("url-parser store", () => {
     expect(s.error).toBeNull();
     expect(s.loadedHistoryId).toBeNull();
     expect(s.savedUrl).toBeNull();
-    expect(s.mutating).toBe(false);
+    expect(s.source).toBeNull();
+  });
+
+  it("setUrl marks source 'url'; reparse clears source back to null", async () => {
+    (urlApi.parse as ReturnType<typeof vi.fn>).mockResolvedValue(makeParts());
+    useUrlParserStore.getState().setUrl("https://x.com");
+    expect(useUrlParserStore.getState().source).toBe("url");
+    await useUrlParserStore.getState().reparse();
+    expect(useUrlParserStore.getState().source).toBeNull();
+  });
+
+  it("setQueryParam / addQueryParam / removeQueryParam mark source 'parts'", () => {
+    useUrlParserStore.setState({ parts: makeParts({ query: [{ key: "a", value: "1" }] }) });
+    useUrlParserStore.getState().setQueryParam(0, { value: "2" });
+    expect(useUrlParserStore.getState().source).toBe("parts");
+    useUrlParserStore.setState({ source: null });
+    useUrlParserStore.getState().addQueryParam();
+    expect(useUrlParserStore.getState().source).toBe("parts");
+    useUrlParserStore.setState({ source: null });
+    useUrlParserStore.getState().removeQueryParam(0);
+    expect(useUrlParserStore.getState().source).toBe("parts");
+  });
+
+  it("rebuild populates url and clears source", async () => {
+    (urlApi.build as ReturnType<typeof vi.fn>).mockResolvedValue("https://built/");
+    useUrlParserStore.setState({ parts: makeParts(), source: "parts" });
+    await useUrlParserStore.getState().rebuild();
+    expect(useUrlParserStore.getState().url).toBe("https://built/");
+    expect(useUrlParserStore.getState().source).toBeNull();
   });
 
   describe("isDirty", () => {

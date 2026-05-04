@@ -3,17 +3,32 @@ import { urlApi } from "./api";
 import { IpcError } from "../../lib/ipc";
 import type { UrlParts, QueryParam } from "../../types/ipc";
 
+/**
+ * Tracks which side the user most recently edited so the two debounced
+ * effects in the page can fire in the matching direction without ever
+ * clobbering each other:
+ *
+ *   - "url"   → user typed in the URL field; reparse it, populate parts.
+ *               (Do NOT rebuild — that would round-trip the URL through
+ *               the parser/builder and overwrite incomplete user input.)
+ *   - "parts" → user edited a parts field or query row; rebuild the URL.
+ *               (Do NOT reparse the rebuilt URL — same reason in reverse.)
+ *   - null    → no user edit pending; both effects no-op.
+ *
+ * `reparse()` and `rebuild()` themselves DO NOT touch `source`. Only
+ * user-action setters (setUrl, setParts, setQueryParam, addQueryParam,
+ * removeQueryParam) set it. Each effect clears it back to null after
+ * its API call resolves so the next type-then-pause cycle starts fresh.
+ */
+export type EditSource = "url" | "parts" | null;
+
 interface UrlParserState {
   url: string;
   parts: UrlParts | null;
   error: string | null;
   loadedHistoryId: number | null;
   savedUrl: string | null;
-  /**
-   * True while a programmatic state write is in progress (e.g., reparse() writing parts,
-   * or rebuild() writing url). Effects in the page check this flag and skip if set.
-   */
-  mutating: boolean;
+  source: EditSource;
 
   setUrl(text: string): void;
   setParts(parts: UrlParts): void;
@@ -34,19 +49,19 @@ const initial = {
   error: null as string | null,
   loadedHistoryId: null as number | null,
   savedUrl: null as string | null,
-  mutating: false,
+  source: null as EditSource,
 };
 
 export const useUrlParserStore = create<UrlParserState>((set, get) => ({
   ...initial,
 
   setUrl(text) {
-    set({ url: text });
+    set({ url: text, source: "url" });
   },
 
   setParts(next) {
     if (get().parts === next) return;
-    set({ parts: next });
+    set({ parts: next, source: "parts" });
   },
 
   setQueryParam(index, patch) {
@@ -55,7 +70,7 @@ export const useUrlParserStore = create<UrlParserState>((set, get) => ({
     const query = parts.query.map((q, i) =>
       i === index ? { ...q, ...patch } : q,
     );
-    set({ parts: { ...parts, query } });
+    set({ parts: { ...parts, query }, source: "parts" });
   },
 
   addQueryParam() {
@@ -63,6 +78,7 @@ export const useUrlParserStore = create<UrlParserState>((set, get) => ({
     if (!parts) return;
     set({
       parts: { ...parts, query: [...parts.query, { key: "", value: "" }] },
+      source: "parts",
     });
   },
 
@@ -70,26 +86,24 @@ export const useUrlParserStore = create<UrlParserState>((set, get) => ({
     const parts = get().parts;
     if (!parts) return;
     const query = parts.query.filter((_, i) => i !== index);
-    set({ parts: { ...parts, query } });
+    set({ parts: { ...parts, query }, source: "parts" });
   },
 
   async reparse() {
     const { url } = get();
     if (url.trim().length === 0) {
-      set({ parts: null, error: null });
+      set({ parts: null, error: null, source: null });
       return;
     }
     try {
       const parts = await urlApi.parse(url);
-      set({ mutating: true, parts, error: null });
-      // microtask to release the lock so the next render sees mutating=false
-      queueMicrotask(() => set({ mutating: false }));
+      set({ parts, error: null, source: null });
     } catch (e) {
       if (e instanceof IpcError && e.app.code === "url_parse") {
-        set({ error: e.app.message });
+        set({ error: e.app.message, source: null });
       } else {
         const message = e instanceof Error ? e.message : String(e);
-        set({ error: message });
+        set({ error: message, source: null });
       }
     }
   },
@@ -99,14 +113,13 @@ export const useUrlParserStore = create<UrlParserState>((set, get) => ({
     if (!parts) return;
     try {
       const url = await urlApi.build(parts);
-      set({ mutating: true, url, error: null });
-      queueMicrotask(() => set({ mutating: false }));
+      set({ url, error: null, source: null });
     } catch (e) {
       if (e instanceof IpcError && e.app.code === "url_parse") {
-        set({ error: e.app.message });
+        set({ error: e.app.message, source: null });
       } else {
         const message = e instanceof Error ? e.message : String(e);
-        set({ error: message });
+        set({ error: message, source: null });
       }
     }
   },

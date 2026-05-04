@@ -1,12 +1,12 @@
 import { ipc } from "../../lib/ipc";
 
-// NOTE: Tauri 2.x converts camelCase JS arg names to snake_case Rust param
-// names by default, but the codebase has no existing multi-word args to
-// validate that convention against. Send snake_case directly to be explicit
-// and avoid silent undefined-argument bugs.
+// Tauri 2.x: the JS side MUST send args in camelCase. The framework
+// auto-translates them to the Rust function's snake_case parameter
+// names — sending snake_case directly fails with
+// "command X missing required key XX".
 export const base64Api = {
   encode: (input: string, urlSafe: boolean) =>
-    ipc<string>("base64_encode", { input, url_safe: urlSafe }),
+    ipc<string>("base64_encode", { input, urlSafe }),
   decode: (input: string, urlSafe: boolean) =>
-    ipc<string>("base64_decode", { input, url_safe: urlSafe }),
+    ipc<string>("base64_decode", { input, urlSafe }),
 };

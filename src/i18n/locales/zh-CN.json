@@ -88,6 +88,7 @@
   "escape": {
     "direction_escape": "转义",
     "direction_unescape": "反转义",
+    "swap_direction_tooltip": "点击切换方向（若输入输出都有内容则同时交换两侧文本）",
     "clear": "清空",
     "save": "保存…",
     "input_label": "输入",
@@ -99,6 +100,7 @@
   "base64": {
     "direction_encode": "编码",
     "direction_decode": "解码",
+    "swap_direction_tooltip": "点击切换方向（若输入输出都有内容则同时交换两侧文本）",
     "url_safe": "URL 安全模式",
     "clear": "清空",
     "save": "保存…",
