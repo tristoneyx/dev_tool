@@ -66,6 +66,25 @@
     "format_failed": "格式化失败：JSON 无效",
     "save_default_title": "JSON 片段"
   },
+  "json_diff": {
+    "left_label": "左侧",
+    "right_label": "右侧",
+    "left_placeholder": "在此粘贴左侧 JSON…",
+    "right_placeholder": "在此粘贴右侧 JSON…",
+    "tree_empty": "点击「对比」查看差异。",
+    "compare": "对比",
+    "swap": "交换",
+    "clear": "清空",
+    "save": "保存…",
+    "show_only_diffs": "仅显示差异",
+    "search_placeholder": "按路径搜索…",
+    "stats_no_diff": "两侧完全等价。",
+    "stats_diffs": "{{total}} 个节点中有 {{n}} 处差异",
+    "preview_object_keys": "{{ {{n}} 个键 }}",
+    "preview_array_items": "[ {{n}} 项 ]",
+    "compare_failed": "对比失败：{{message}}",
+    "save_default_title": "Diff 片段"
+  },
   "common": {
     "just_now": "刚刚",
     "ago_minute": "{{n}} 分钟前",

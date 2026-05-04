@@ -12,6 +12,7 @@ import { UrlParser } from "./tools/url-parser";
 import type { HistoryItem, ToolKind } from "./types/ipc";
 import { useToastStore } from "./shell/toastStore";
 import { useJsonViewerStore } from "./tools/json-viewer/store";
+import { useJsonDiffStore } from "./tools/json-diff/store";
 
 const tools: Record<ToolKind, () => ReactElement> = {
   json_viewer: JsonViewer,
@@ -35,6 +36,15 @@ export default function App() {
       useJsonViewerStore.getState().setLoadedHistoryId(item.id);
       useJsonViewerStore.getState().setSavedInput(item.content.input);
       void useJsonViewerStore.getState().parse(item.content.input);
+      push("success", t("common.loaded_history_toast", { title: item.title }));
+      return;
+    }
+    if (item.content.tool === "json_diff") {
+      useJsonDiffStore.getState().setLeft(item.content.left);
+      useJsonDiffStore.getState().setRight(item.content.right);
+      useJsonDiffStore.getState().setLoadedHistoryId(item.id);
+      useJsonDiffStore.getState().setSaved(item.content.left, item.content.right);
+      void useJsonDiffStore.getState().compare();
       push("success", t("common.loaded_history_toast", { title: item.title }));
       return;
     }

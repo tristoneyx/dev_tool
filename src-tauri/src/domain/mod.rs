@@ -1,3 +1,4 @@
+pub mod diff;
 pub mod escape;
 pub mod history;
 pub mod json_tree;
