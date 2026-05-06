@@ -2416,7 +2416,7 @@ export default function App() {
   const ActiveTool = tools[active];
 
   function handleLoad(item: HistoryItem) {
-    push("info", `Loaded "${item.title}" (wiring in next plan).`);
+    push("info", `Loaded "${item.title}".`);
   }
 
   return (

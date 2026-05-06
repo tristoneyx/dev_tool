@@ -123,6 +123,6 @@
     "size_kb": "{{n}} KB",
     "size_mb": "{{n}} MB",
     "coming_soon": "{{tool}} — 后续计划实现",
-    "loaded_history_toast": "已载入「{{title}}」（下个计划接入）"
+    "loaded_history_toast": "已载入「{{title}}」"
   }
 }

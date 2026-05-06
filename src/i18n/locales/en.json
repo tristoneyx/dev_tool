@@ -123,6 +123,6 @@
     "size_kb": "{{n}} KB",
     "size_mb": "{{n}} MB",
     "coming_soon": "{{tool}} — coming next plan.",
-    "loaded_history_toast": "Loaded \"{{title}}\" (wiring in next plan)."
+    "loaded_history_toast": "Loaded \"{{title}}\"."
   }
 }
