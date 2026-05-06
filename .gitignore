@@ -23,3 +23,6 @@ src-tauri/gen/
 # Env
 .env
 .env.local
+
+# Claude Code (per-developer)
+.claude/settings.local.json
